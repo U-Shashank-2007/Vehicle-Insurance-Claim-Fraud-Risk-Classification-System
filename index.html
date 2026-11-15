@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="ClaimGuard — Vehicle Insurance Claim Fraud Risk Classification System. Machine learning project by U Shashank.">
+<title>ClaimGuard | Vehicle Insurance Fraud Risk</title>
+<style>
+:root{--bg:#0b1220;--panel:#121d30;--panel2:#17243a;--text:#e8eef8;--muted:#a8b5c9;--line:#263650;--blue:#69a7ff;--cyan:#5de0d0;--orange:#ffbd69}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Arial,sans-serif}
+a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}.wrap{width:min(1120px,92%);margin:auto}
+nav{position:sticky;top:0;background:#0b1220eF;backdrop-filter:blur(12px);border-bottom:1px solid var(--line);z-index:5}
+.navin{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:14px 0}.brand{font-weight:800;letter-spacing:.3px;color:white}.brand span{color:var(--cyan)}.links{display:flex;gap:20px;flex-wrap:wrap;font-size:14px}.links a{color:var(--muted)}
+.hero{padding:90px 0 70px;background:radial-gradient(ellipse at 75% 15%,#17416a 0,transparent 38%),linear-gradient(135deg,#0b1220,#101e33)}
+.eyebrow{color:var(--cyan);font-weight:700;letter-spacing:2px;text-transform:uppercase;font-size:12px}.hero h1{font-size:clamp(36px,6vw,64px);line-height:1.08;max-width:850px;margin:16px 0}.hero p{color:var(--muted);max-width:720px;font-size:18px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.btn{display:inline-block;padding:11px 17px;border-radius:9px;font-weight:700;border:1px solid var(--line)}.primary{background:var(--blue);color:#07111f;border-color:var(--blue)}.secondary{color:var(--text);background:#14243a}
+.notice{border:1px solid #8c6c3b;background:#3b2c18;color:#ffe3b5;padding:14px 17px;border-radius:10px;margin-top:28px;max-width:850px}
+section{padding:66px 0;border-bottom:1px solid var(--line)}h2{font-size:30px;margin:0 0 10px}h3{margin:0 0 8px}.lead{color:var(--muted);max-width:780px;margin:0 0 28px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}.card p{color:var(--muted);margin:6px 0 0}.stat{font-size:30px;font-weight:800;color:white}.stat small{font-size:13px;color:var(--muted);font-weight:500}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}.barrow{margin:16px 0}.barlabel{display:flex;justify-content:space-between;color:var(--muted);font-size:14px}.track{height:13px;background:#25344a;border-radius:20px;overflow:hidden;margin-top:7px}.fill{height:100%;border-radius:20px;background:linear-gradient(90deg,var(--blue),var(--cyan))}
+table{width:100%;border-collapse:collapse;background:var(--panel);border-radius:12px;overflow:hidden}th,td{text-align:left;padding:12px;border-bottom:1px solid var(--line)}th{color:var(--cyan);font-size:13px}td{color:var(--muted)}tr:last-child td{border:0}
+.steps{counter-reset:step;display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.step{counter-increment:step;background:var(--panel);border:1px solid var(--line);padding:18px;border-radius:12px}.step h3:before{content:counter(step) ". ";color:var(--cyan)}
+.tags{display:flex;flex-wrap:wrap;gap:8px}.tag{padding:6px 10px;border:1px solid var(--line);background:var(--panel2);border-radius:30px;color:var(--muted);font-size:13px}
+footer{padding:28px 0;color:var(--muted);font-size:13px}
+@media(max-width:760px){.grid,.split,.steps{grid-template-columns:1fr}.links{gap:10px}.navin{align-items:flex-start;flex-direction:column}.hero{padding:62px 0 48px}section{padding:48px 0}table{font-size:13px}th,td{padding:8px}}
+</style>
+</head>
+<body>
+<nav><div class="wrap navin"><a class="brand" href="#">CLAIM<span>GUARD</span></a><div class="links"><a href="#overview">Overview</a><a href="#eda">EDA</a><a href="#method">Methodology</a><a href="#results">Results</a><a href="#tech">Technology</a></div></div></nav>
+<header class="hero"><div class="wrap">
+<div class="eyebrow">Machine Learning · Classification · Insurance Analytics</div>
+<h1>Vehicle Insurance Claim Fraud Risk Classification System</h1>
+<p>A machine-learning decision-support project that ranks vehicle insurance claims by estimated fraud risk, helping investigators prioritise which claims to review first.</p>
+<div class="actions"><a class="btn primary" href="https://github.com/U-Shashank-2007/Vehicle-Insurance-Claim-Fraud-Risk-Classification-System" target="_blank" rel="noopener">View source on GitHub ↗</a><a class="btn secondary" href="#results">Explore model results</a></div>
+<div class="notice"><strong>Responsible-use note:</strong> ClaimGuard is a review-prioritisation aid, not an automated fraud decision-maker. A high score is not proof of fraud. Every flagged claim requires human review.</div>
+</div></header>
+<main>
+<section id="overview"><div class="wrap">
+<h2>Project overview</h2><p class="lead">The project follows an end-to-end workflow: exploratory analysis, leakage-aware feature preparation, model training, evaluation and a desktop interface for single-claim and batch assessment.</p>
+<div class="grid">
+<div class="card"><div class="stat">100,000</div><small>Claim records</small><p>Public Kaggle vehicle insurance claim dataset.</p></div>
+<div class="card"><div class="stat">62</div><small>Original columns</small><p>Claim, policy, vehicle and customer information.</p></div>
+<div class="card"><div class="stat">20.04%</div><small>Fraudulent claims</small><p>20,042 fraudulent records among 100,000 claims.</p></div>
+</div></div></section>
+<section id="eda"><div class="wrap">
+<h2>Exploratory data analysis</h2><p class="lead">EDA established the dataset’s class balance, missingness, duplicate count and a critical data-leakage issue before model development.</p>
+<div class="split"><div class="card"><h3>Target class distribution</h3>
+<div class="barrow"><div class="barlabel"><span>Legitimate · 79,958</span><b>79.96%</b></div><div class="track"><div class="fill" style="width:79.96%"></div></div></div>
+<div class="barrow"><div class="barlabel"><span>Fraudulent · 20,042</span><b>20.04%</b></div><div class="track"><div class="fill" style="width:20.04%;background:var(--orange)"></div></div></div>
+<p>Approximately four legitimate claims exist for every fraudulent claim. Accuracy alone can therefore be misleading.</p></div>
+<div class="card"><h3>Missing values</h3><div class="stat">16,527</div><p>Missing records in <code>vehicle_damage</code>, the only column recorded as containing missing values in the EDA summary.</p><br><h3>Duplicates</h3><div class="stat">0</div><p>No duplicate records were found.</p></div></div>
+<div class="card" style="margin-top:16px"><h3>Data leakage discovery</h3><p><code>fraud_risk_score</code> perfectly separated the target classes. It was excluded because it would reveal the answer rather than provide a legitimate signal available at initial claim assessment. Post-decision fields, investigation-stage fields, identifiers and personal names were also excluded from model inputs.</p></div>
+</div></section>
+<section id="method"><div class="wrap">
+<h2>Methodology</h2><p class="lead">The pipeline was designed to reduce leakage and produce a more realistic estimate of performance on unseen customers.</p>
+<div class="steps">
+<div class="step"><h3>Data preparation</h3><p>Remove leakage-prone fields and derive five date features: claim month, day of week, reporting delay, policy tenure and vehicle age at claim.</p></div>
+<div class="step"><h3>Customer-aware split</h3><p>Use StratifiedGroupKFold with customer_id as the grouping variable: 80,000 training records and 20,000 test records, with no customer overlap.</p></div>
+<div class="step"><h3>Preprocessing</h3><p>Median imputation for numerical columns; most-frequent imputation and one-hot encoding for categorical columns. Fit transformations on training data only.</p></div>
+<div class="step"><h3>Class imbalance</h3><p>Apply SMOTE inside the training pipeline so validation and test data remain untouched.</p></div>
+<div class="step"><h3>Model training</h3><p>Compare Logistic Regression with a Grid-Search-tuned Random Forest.</p></div>
+<div class="step"><h3>Threshold and evaluation</h3><p>Select the threshold on a validation split, then evaluate once on the held-out test set.</p></div>
+</div>
+</div></section>
+<section id="results"><div class="wrap">
+<h2>Model performance</h2><p class="lead">The tuned Random Forest achieved better ranking metrics than the Logistic Regression baseline. Selecting a lower validation-based threshold improved fraud recall.</p>
+<div class="card" style="overflow-x:auto"><h3>Model comparison at threshold 0.50</h3><table><thead><tr><th>Model</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead><tbody>
+<tr><td>Logistic Regression + SMOTE</td><td>0.6454</td><td>0.2476</td><td>0.3772</td><td>0.2990</td><td>0.5597</td><td>0.2503</td></tr>
+<tr><td>Tuned Random Forest + SMOTE</td><td>0.8030</td><td>0.6736</td><td>0.0324</td><td>0.0619</td><td>0.6482</td><td>0.3617</td></tr>
+</tbody></table></div>
+<div class="card" style="margin-top:16px;overflow-x:auto"><h3>Random Forest at selected threshold ≈ 0.23</h3><table><thead><tr><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th><th>ROC-AUC</th><th>PR-AUC</th></tr></thead><tbody><tr><td>0.69465</td><td>0.33640</td><td>0.53842</td><td>0.41408</td><td>0.64824</td><td>0.36169</td></tr></tbody></table></div>
+<div class="grid" style="margin-top:16px">
+<div class="card"><div class="stat">53.84%</div><p>Fraud recall at the selected threshold.</p></div>
+<div class="card"><div class="stat">33.64%</div><p>Precision: share of flagged claims that were fraudulent.</p></div>
+<div class="card"><div class="stat">0.6482</div><p>ROC-AUC, indicating moderate ranking performance.</p></div>
+</div>
+<p class="lead" style="margin-top:18px">The score is not a calibrated probability. The threshold is a validation-selected operating point, not a universal fraud boundary.</p>
+</div></section>
+<section id="tech"><div class="wrap">
+<h2>Technology stack</h2><p class="lead">Tools used across data analysis, machine learning and the application.</p>
+<div class="tags"><span class="tag">Python</span><span class="tag">pandas</span><span class="tag">NumPy</span><span class="tag">scikit-learn</span><span class="tag">imbalanced-learn / SMOTE</span><span class="tag">Grid Search</span><span class="tag">Jupyter Notebook</span><span class="tag">PySide6</span><span class="tag">joblib</span><span class="tag">Git & GitHub</span></div>
+<div class="grid" style="margin-top:20px">
+<div class="card"><h3>Desktop application</h3><p>The repository describes a PySide6 interface with overview, single-claim assessment, batch upload and performance views.</p></div>
+<div class="card"><h3>Model service</h3><p>A separate service layer loads the saved preprocessor, trained model and selected threshold for scoring.</p></div>
+<div class="card"><h3>Reproducibility</h3><p>EDA and preprocessing notebooks, training scripts and saved artefacts support the documented workflow.</p></div>
+</div>
+</div></section>
+<section><div class="wrap">
+<h2>Limitations & future work</h2><p class="lead">Current results are moderate and come from one public dataset. Before real-world use, the system needs external validation, fairness checks, probability calibration and monitoring.</p>
+<div class="grid">
+<div class="card"><h3>Explainability</h3><p>Add claim-level explanations, for example with SHAP.</p></div>
+<div class="card"><h3>Better imbalance handling</h3><p>Evaluate SMOTENC or class weighting to preserve categorical structure.</p></div>
+<div class="card"><h3>Responsible deployment</h3><p>Assess fairness, drift, privacy, calibration and performance on independent insurer data.</p></div>
+</div>
+</div></section>
+<section><div class="wrap">
+<h2>Project resources</h2><p class="lead">Explore the source code and project documentation.</p>
+<div class="actions"><a class="btn primary" href="https://github.com/U-Shashank-2007/Vehicle-Insurance-Claim-Fraud-Risk-Classification-System" target="_blank" rel="noopener">GitHub repository ↗</a><a class="btn secondary" href="https://github.com/U-Shashank-2007/Vehicle-Insurance-Claim-Fraud-Risk-Classification-System/blob/main/README.md" target="_blank" rel="noopener">Read README ↗</a></div>
+<p style="color:var(--muted);margin-top:20px">Developed by U Shashank · School of Computing and AI · Lovely Professional University</p>
+</div></section>
+</main>
+<footer><div class="wrap">© 2026 ClaimGuard project showcase. Educational use only. This static site does not perform live claim scoring.</div></footer>
+</body></html>
