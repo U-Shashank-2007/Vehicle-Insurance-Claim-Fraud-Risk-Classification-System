@@ -15,6 +15,7 @@ env/
 # Dataset files
 Data/Raw/
 Data/Processed/
+Data/Test/
 
 # Model artifacts
 models/

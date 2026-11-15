@@ -1,45 +1,45 @@
 # Vehicle Insurance Claim Fraud Risk Classification System
 
-A machine-learning decision-support dashboard for identifying vehicle insurance claims that may warrant further fraud investigation. The system compares Logistic Regression and a tuned Random Forest model, then provides an interactive Streamlit interface for assessing individual claims and ranking batches of claims by model score.
+**ClaimGuard** is a machine-learning decision-support tool that helps investigators decide which vehicle insurance claims to review first. The project compares a Logistic Regression baseline with a tuned Random Forest, then serves the final model through a desktop application for assessing single claims and ranking batches of claims.
 
-> **Important:** This project is an investigation-prioritization aid, not an automated fraud detector. A high score is not proof of fraud. All flagged claims require human review.
+> **Important:** ClaimGuard is an investigation-prioritisation aid, not an automated fraud detector. A high score is not proof of fraud, and a low score does not guarantee a claim is genuine. Every flagged claim requires human review.
 
-## Project Overview
+## Contents
 
-This project explores how supervised machine learning can help investigators prioritize vehicle insurance claims for review. It uses the Kaggle **Vehicle Insurance Claim Fraud Detection Dataset** and includes exploratory data analysis, leakage-aware preprocessing, class-imbalance handling, model comparison, hyperparameter tuning, threshold selection, evaluation, and a Streamlit dashboard.
+- [Features](#features)
+- [Repository structure](#repository-structure)
+- [Dataset](#dataset)
+- [Methodology](#methodology)
+- [Results](#results)
+- [Installation](#installation)
+- [Running the application](#running-the-application)
+- [Reproducing the experiment](#reproducing-the-experiment)
+- [Limitations and responsible use](#limitations-and-responsible-use)
 
-## Prerequisites
+## Features
 
-Make sure the following are available before installing or running the project:
+**Machine learning**
 
-- **Python 3:** Install a Python version compatible with the packages listed in `requirements.txt`.
-- **pip:** Python package installer, used to install the project dependencies.
-- **Git:** Required to clone the project repository.
-- **Kaggle account and internet connection:** Required to download the dataset if it is not already available locally.
-- **Project files and generated artifacts:** The dashboard requires the preprocessing and model artifacts described in the [Repository Structure](#repository-structure) and [Installation and Execution](#installation-and-execution) sections.
+- Exploratory data analysis and date-based feature engineering
+- Leakage-aware feature selection
+- Customer-group-aware train/test split
+- Median / most-frequent imputation and one-hot encoding
+- SMOTE applied inside the training pipelines
+- Logistic Regression baseline and Grid-Search-tuned Random Forest
+- Validation-based decision-threshold selection
+- Evaluation with precision, recall, F1-score, ROC-AUC and PR-AUC
 
-You can check whether Python, pip, and Git are available by running:
+**Desktop application (PySide6)**
 
-```powershell
-python --version
-python -m pip --version
-git --version
-```
+- **Overview:** headline model quality, most influential factors, recent assessments
+- **Assess a claim:** five-step form with a risk gauge and plain-language priority
+- **Batch upload:** drag in a CSV, get claims ranked by risk, download the results
+- **Performance:** live classification report, confusion matrix and key factors
+- Light and dark themes, switchable from the top bar
 
-## Key Features
+The interface deliberately hides implementation details (model type, threshold, feature names). All model access goes through a separate service layer.
 
-- Exploratory data analysis and feature engineering.
-- Leakage-aware feature selection.
-- Customer-group-aware train/test splitting.
-- Numerical imputation and categorical one-hot encoding.
-- SMOTE applied within model-training pipelines.
-- Logistic Regression baseline and Grid-Search-tuned Random Forest.
-- Evaluation using precision, recall, F1-score, ROC-AUC, and PR-AUC.
-- Validation-based decision-threshold selection.
-- Feature-importance analysis.
-- Streamlit dashboard for single-claim and batch assessment.
-
-## Repository Structure
+## Repository structure
 
 ```text
 CA-1/
@@ -56,7 +56,11 @@ CA-1/
 │       ├── y_test.npy
 │       └── y_train.npy
 ├── models/
+│   └── final_random_forest_fraud_model.joblib
 ├── reports/
+│   ├── selected_threshold.json
+│   ├── final_test_evaluation.csv
+│   └── feature_importance.csv
 ├── src/
 │   ├── models/
 │   ├── reports/
@@ -64,351 +68,211 @@ CA-1/
 │   ├── preprocessing.ipynb
 │   ├── model.py
 │   └── train.py
-├── app.py
+├── claimguard_app.py      # desktop interface (presentation only)
+├── model_service.py       # model access layer used by the interface
 ├── requirements.txt
 └── README.md
 ```
 
-Generated data, model, and report artifacts are excluded from version control through `.gitignore`. The dashboard therefore requires the corresponding locally generated artifacts to be present before it can run.
+`claimguard_app.py` and `model_service.py` must sit in the project root, because `model_service.py` resolves artifact paths relative to its own location.
+
+Generated data, model and report files are excluded from version control by `.gitignore`. A fresh clone will not run the application until these artifacts have been generated or supplied (see [Required artifacts](#required-artifacts)).
 
 ## Dataset
 
-**Source:** Kaggle — Vehicle Insurance Claim Fraud Detection Dataset.
+**Source:** Kaggle, *Vehicle Insurance Claim Fraud Detection Dataset*.
 
-The working dataset contains 100,000 records and 62 columns. The target column is `fraudulent`.
+The working dataset has 100,000 records and 62 columns. The target column is `fraudulent`.
 
 | Target | Records |
 |---|---:|
 | No | 79,958 |
 | Yes | 20,042 |
 
-Approximately 20% of the records are labelled fraudulent.
-
-To reduce target leakage, `fraud_risk_score` was excluded because it perfectly separated the target in this dataset. Post-decision fields such as claim status and payout-related amounts were also excluded. Identifiers and personal names were excluded from model inputs. `customer_id` is retained only to support group-aware splitting.
+About 20% of records are labelled fraudulent.
 
 ## Methodology
 
-### Preprocessing and Feature Engineering
-
-Date fields are used to derive `claim_month`, `claim_day_of_week`, `reporting_delay_days`, `policy_tenure_years`, and `vehicle_age_at_claim`. Invalid or impossible date-derived values are treated as missing.
-
-Numerical columns are imputed using the training-set median. Categorical columns are imputed using the training-set most frequent value and one-hot encoded. Preprocessing transformations are fitted on training data only.
-
-### Train/Test Split
-
-A `StratifiedGroupKFold` split is used with `customer_id` as the grouping variable. The first fold is held out for testing:
-
-- Training set: 80,000 records.
-- Test set: 20,000 records.
-- No customer overlap between training and test sets.
-
-### Class Imbalance
-
-SMOTE is applied within the model-training pipeline, so resampling occurs during fitting rather than before the train/test split.
-
-### Models and Tuning
-
-The model comparison includes Logistic Regression with SMOTE and a Random Forest with SMOTE and Grid Search tuning.
-
-Selected Random Forest parameters:
-
-```python
-{
-    "classifier__max_depth": 20,
-    "classifier__max_features": "sqrt",
-    "classifier__min_samples_leaf": 2,
-    "classifier__n_estimators": 250
-}
-```
-
-### Decision Threshold
-
-The final Random Forest decision threshold was selected using a separate validation split from the training data, maximizing validation F1-score. The selected threshold was approximately **0.23**. The held-out test set was not used to select this threshold.
-
-## End-to-End Project Workflow
-
-The project follows this sequence from the original dataset to claim assessment:
-
 ```mermaid
 flowchart TD
-    A[Raw vehicle insurance claims dataset] --> B[Exploratory data analysis]
-    B --> C[Feature engineering and leakage-aware feature selection]
+    A[Raw claims dataset] --> B[Exploratory data analysis]
+    B --> C[Feature engineering and leakage-aware selection]
     C --> D[Customer-group-aware train/test split]
     D --> E[Fit preprocessing on training data]
-    E --> F[Apply SMOTE within training pipelines]
-    F --> G[Train Logistic Regression baseline]
-    F --> H[Train and tune Random Forest]
-    G --> I[Compare model performance]
+    E --> F[SMOTE inside training pipelines]
+    F --> G[Logistic Regression baseline]
+    F --> H[Tuned Random Forest]
+    G --> I[Compare models]
     H --> I
-    I --> J[Select operating threshold using validation data]
-    J --> K[Evaluate on held-out test data]
-    K --> L[Save required project artifacts]
-    L --> M[Streamlit dashboard]
+    I --> J[Select threshold on validation split]
+    J --> K[Evaluate on held-out test set]
+    K --> L[Save model, preprocessor and reports]
+    L --> M[ClaimGuard desktop app]
     M --> N[Single-claim assessment]
-    M --> O[Batch claim assessment]
+    M --> O[Batch assessment]
+    M --> P[Performance report]
 ```
 
-The main stages have distinct purposes:
+### Feature engineering
 
-1. **Understand the data:** inspect the target distribution, feature types, missing values, and potential leakage.
-2. **Prepare model inputs:** derive date-based features, handle missing values, and encode categorical variables.
-3. **Protect evaluation integrity:** split by customer so the same customer does not appear in both training and test data.
-4. **Train and compare models:** evaluate Logistic Regression and a Grid-Search-tuned Random Forest, with SMOTE contained within the training pipelines.
-5. **Choose an operating threshold:** use a validation split from the training data rather than selecting the threshold on the held-out test set.
-6. **Assess claims:** use the dashboard to score an individual claim or a batch of claims for human review.
+Five features are derived from date fields. Invalid or impossible values are treated as missing.
 
-## Machine Learning Pipeline Details
-
-### Feature Engineering
-
-The project derives the following features from date fields:
-
-| Engineered feature | Purpose |
+| Feature | Meaning |
 |---|---|
-| `claim_month` | Captures the month in which the claim occurred. |
-| `claim_day_of_week` | Captures the day of the week of the claim. |
-| `reporting_delay_days` | Represents the delay between the relevant claim and reporting dates. |
-| `policy_tenure_years` | Represents how long the policy has been active. |
-| `vehicle_age_at_claim` | Represents vehicle age at the time of the claim. |
+| `claim_month` | Month in which the claim occurred |
+| `claim_day_of_week` | Day of the week of the claim (0 = Monday) |
+| `reporting_delay_days` | Delay between the incident and the report |
+| `policy_tenure_years` | How long the policy has been active |
+| `vehicle_age_at_claim` | Vehicle age at the time of the claim |
 
-Invalid or impossible date-derived values are treated as missing. The README's preprocessing workflow uses the training data to fit imputation and encoding transformations, then applies those fitted transformations to later data.
+### Leakage prevention
 
-### Leakage Prevention
-
-Leakage prevention is important because a model can appear highly accurate if it receives information that would not legitimately be available at the time of assessment.
-
-The project documents these safeguards:
-
-- `fraud_risk_score` is excluded because it perfectly separated the target in this dataset.
-- Post-decision fields, including claim status and payout-related amounts, are excluded from model inputs.
+- `fraud_risk_score` is excluded because it perfectly separated the target.
+- Post-decision fields (claim status, payout-related amounts) are excluded.
 - Identifiers and personal names are excluded from model inputs.
-- `customer_id` is retained only for group-aware splitting.
-- Preprocessing transformations are fitted on training data only.
-- The test set is not used to choose the final decision threshold.
+- `customer_id` is kept only for group-aware splitting.
+- Preprocessing is fitted on training data only.
+- The test set is never used to choose the decision threshold.
 
 ### Preprocessing
 
-| Feature type | Training-time treatment |
+| Feature type | Treatment |
 |---|---|
-| Numerical | Median imputation |
-| Categorical | Most-frequent-value imputation followed by one-hot encoding |
+| Numerical | Median imputation (training set) |
+| Categorical | Most-frequent imputation, then one-hot encoding |
 | Class imbalance | SMOTE inside the model-training pipeline |
 
-Keeping preprocessing and resampling inside the training workflow helps prevent information from the held-out test set from influencing model fitting.
+### Train/test split
 
-### Model Roles
+A `StratifiedGroupKFold` split groups records by `customer_id`, and the first fold is held out for testing. This gives 80,000 training and 20,000 test records, with no customer appearing in both.
 
-**Logistic Regression** is used as the baseline model. It provides a comparatively simple reference point against which the more complex model can be evaluated.
+### Models and tuning
 
-**Random Forest** is used as the tuned model. Grid Search is used to select hyperparameters, and feature-importance analysis is used to inspect which inputs contribute to the fitted forest's predictions. Feature importance is descriptive, not proof of causation.
+- **Logistic Regression + SMOTE** is the baseline.
+- **Random Forest + SMOTE** is tuned with Grid Search. Selected parameters:
 
-The selected Random Forest settings documented for this experiment are:
-
-| Parameter | Selected value |
+| Parameter | Value |
 |---|---:|
 | `classifier__max_depth` | 20 |
 | `classifier__max_features` | `sqrt` |
 | `classifier__min_samples_leaf` | 2 |
 | `classifier__n_estimators` | 250 |
 
-## Evaluation Protocol and Metric Guide
+### Decision threshold
 
-The project reports both threshold-dependent metrics and ranking metrics.
-
-| Metric | What it tells you |
-|---|---|
-| Accuracy | The proportion of all claims classified correctly. |
-| Precision | Among claims flagged by the model, the proportion labelled fraudulent in the dataset. |
-| Recall | Among claims labelled fraudulent, the proportion identified by the model. |
-| F1-score | A combined measure of precision and recall. |
-| ROC-AUC | How well the model ranks positive cases above negative cases across thresholds. |
-| PR-AUC | The precision-recall trade-off across thresholds; useful to inspect when classes are imbalanced. |
-
-### Why the Decision Threshold Matters
-
-A model's score is converted into a class flag using a decision threshold. Changing this threshold changes the balance between precision and recall.
-
-For this experiment:
-
-- At the default threshold of `0.50`, the tuned Random Forest has high precision but very low recall.
-- The selected threshold is approximately `0.23`, chosen by maximizing F1-score on a separate validation split from the training data.
-- At approximately `0.23`, recall increases to `0.5384`, while precision is `0.3364`.
-- The threshold is evaluated on the held-out test set only after it has been selected.
-
-This operating point is intended to help prioritize claims for investigation. It does not establish that a flagged claim is fraudulent. The displayed score is not a calibrated probability.
-
-## Dashboard Workflows
-
-### Single-Claim Assessment
-
-The **New Claim** page allows a user to enter claim information and receive a model score and risk flag. The output should be treated as a prompt for further review, not as a final decision.
-
-### Batch Assessment
-
-The **Batch Assessment** page supports a CSV upload. The application scores and ranks the supplied claims and allows the results to be downloaded.
-
-The input file must follow the feature names and schema expected by the project's preprocessing pipeline. It must include the engineered fields listed in the [Batch CSV Input](#batch-csv-input) section. Do not include the target label or post-investigation/post-decision information as model inputs.
-
-### Model Insights
-
-The **Model Insights** page exposes evaluation metrics and feature-importance information to help users inspect model behaviour.
-
-## Data, Model, and Generated Artifact Management
-
-The repository structure separates raw data, processed data, source code, trained models, and reports.
-
-A clean clone may not contain all files required to run the dashboard because generated data, model, and report artifacts are excluded through `.gitignore`.
-
-Before starting the dashboard, verify that:
-
-- The raw dataset is present at the documented path.
-- The preprocessing workflow has been run successfully.
-- The trained model and its supporting preprocessing artifacts are available.
-- Any threshold or report artifacts expected by `app.py` are available.
-- The artifact paths and feature schema match what the dashboard code expects.
-
-Do not assume that installing Python dependencies alone is sufficient to make the dashboard runnable. The required locally generated artifacts must also exist.
-
-## Reproducing the Project
-
-Use the following high-level sequence when reproducing the experiment from the repository:
-
-1. Clone the repository and install dependencies using the instructions in [Installation and Execution](#installation-and-execution).
-2. Download the dataset and place it in `Data/Raw/`.
-3. Inspect the data and reproduce the exploratory analysis in `src/EDA.ipynb`.
-4. Run the preprocessing workflow in `src/preprocessing.ipynb` to create the processed inputs.
-5. Run the model-training workflow using the project training code in `src/train.py` and the associated model code in `src/model.py`.
-6. Confirm that the model, preprocessing, threshold, and report artifacts required by `app.py` have been generated.
-7. Launch the Streamlit dashboard from the repository root.
-
-The exact artifact filenames and paths are determined by the project code. If you change the training or preprocessing workflow, ensure that the dashboard uses artifacts generated by the same compatible workflow.
-
-## Practical Checks Before a Demonstration
-
-- Start the application from the repository root so relative paths resolve as expected.
-- Confirm that all required artifacts are present before running Streamlit.
-- Test the New Claim page with valid feature values.
-- Test Batch Assessment with a CSV that follows the expected input schema.
-- Check that the downloaded batch results contain the expected claim scores and rankings.
-- Explain the precision-recall trade-off when presenting the selected threshold.
-- Emphasize that model flags require human investigation.
+A model score is turned into a flag using a threshold. The final threshold (about **0.23**) was chosen by maximising F1-score on a separate validation split of the training data. The held-out test set was evaluated only after the threshold was fixed.
 
 ## Results
 
-The test set is reserved for final evaluation. The decision threshold is selected using a separate validation split from the training data, not by optimizing performance on the held-out test set.
+### Model comparison at the default 0.50 threshold
 
-### Model Comparison at the Default 0.50 Threshold
-
-| Model | Accuracy | Precision | Recall | F1-score | ROC-AUC | PR-AUC |
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC | PR-AUC |
 |---|---:|---:|---:|---:|---:|---:|
 | Logistic Regression + SMOTE | 0.6454 | 0.2476 | 0.3772 | 0.2990 | 0.5597 | 0.2503 |
 | Tuned Random Forest + SMOTE | 0.8030 | 0.6736 | 0.0324 | 0.0619 | 0.6482 | 0.3617 |
 
-### Tuned Random Forest at the Selected Validation Threshold
+### Tuned Random Forest at the selected threshold
 
-| Threshold | Accuracy | Precision | Recall | F1-score | ROC-AUC | PR-AUC |
+| Threshold | Accuracy | Precision | Recall | F1 | ROC-AUC | PR-AUC |
 |---:|---:|---:|---:|---:|---:|---:|
 | ~0.23 | 0.6947 | 0.3364 | 0.5384 | 0.4141 | 0.6482 | 0.3617 |
 
-The lower operating threshold substantially increases recall compared with using 0.50, at the cost of lower precision. This trade-off is intended for an investigator-facing workflow: potentially suspicious claims are prioritized for human review rather than automatically rejected.
+At 0.50 the forest is precise but misses almost all fraud. Lowering the threshold to about 0.23 raises recall from 0.03 to 0.54 at the cost of precision. On the held-out test set the model identifies roughly 54% of fraudulent claims, and roughly 34% of the claims it flags are fraudulent. That trade-off suits an investigator-facing workflow, where suspicious claims are prioritised for review rather than rejected automatically.
 
-At the selected threshold, the model identifies approximately 53.8% of fraudulent claims in the held-out test set. Approximately 33.6% of the claims it flags are fraudulent. The score is not a calibrated probability and should not be interpreted as a final fraud decision.
+### Metric guide
 
-## Streamlit Dashboard
+| Metric | Meaning |
+|---|---|
+| Accuracy | Share of all claims classified correctly |
+| Precision | Of the claims flagged, the share that are labelled fraudulent |
+| Recall | Of the claims labelled fraudulent, the share that were flagged |
+| F1-score | Combined measure of precision and recall |
+| ROC-AUC | How well the model ranks fraud above non-fraud across thresholds |
+| PR-AUC | Precision-recall trade-off across thresholds; useful with imbalanced classes |
 
-The dashboard contains:
+## Installation
 
-- **Overview:** Project summary and evaluation metrics.
-- **New Claim:** Enter claim details and obtain a model score and risk flag.
-- **Batch Assessment:** Upload a CSV, score and rank claims, and download the results.
-- **Model Insights:** Inspect evaluation metrics and feature-importance information.
-
-## Installation and Execution
-
-Follow these steps to set up the project and launch the dashboard. Use a Python version compatible with the packages pinned or specified in `requirements.txt`; the project README does not assume a specific Python version.
-
-### 1. Clone the Repository
+Requires **Python 3.11 or newer**, **pip** and **Git**. A Kaggle account is needed to download the dataset.
 
 ```powershell
 git clone https://github.com/U-Shashank-2007/Vehicle-Insurance-Claim-Fraud-Risk-Classification-System.git
 cd Vehicle-Insurance-Claim-Fraud-Risk-Classification-System
-```
 
-### 2. Create and Activate a Virtual Environment
-
-```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
+.\.venv\Scripts\Activate.ps1        # macOS/Linux: source .venv/bin/activate
 
-### 3. Install Dependencies
-
-```powershell
 python -m pip install -r requirements.txt
 ```
 
-### 4. Download the Dataset
+`requirements.txt` pins `scikit-learn` and `imbalanced-learn` deliberately. The saved model and preprocessor must be loaded with the same versions that created them.
 
-Download the **Vehicle Insurance Claim Fraud Detection Dataset** from Kaggle and place the CSV file at the following location:
+Download the dataset from Kaggle and place it at:
 
 ```text
 Data/Raw/insurance_claim_fraud_dataset.csv
 ```
 
-### 5. Prepare the Required Project Artifacts
+## Running the application
 
-Before launching the dashboard, ensure that the locally generated preprocessing, model, threshold, and report artifacts are available at the paths expected by `app.py`.
-
-These artifacts are excluded from the repository and must be generated by the project workflow or supplied separately. The dashboard may not run successfully if the required artifacts are missing.
-
-### 6. Run the Dashboard
-
-From the project root directory, execute:
+Start from the project root:
 
 ```powershell
-streamlit run app.py
+python claimguard_app.py
 ```
 
-Alternatively, use:
+### Required artifacts
 
-```powershell
-python -m streamlit run app.py
-```
+The application will not start without these files. If one is missing, it shows a friendly error with the details available under *Show Details*.
 
-Streamlit will start the application and provide a local URL in the terminal. Open that URL in a web browser to use the dashboard.
+| File | Needed for |
+|---|---|
+| `models/final_random_forest_fraud_model.joblib` | Scoring (required) |
+| `Data/Processed/preprocessor.joblib` | Scoring (required) |
+| `reports/selected_threshold.json` | Priority levels and flags (required) |
+| `reports/final_test_evaluation.csv` | Overview quality cards and chart (optional) |
+| `reports/feature_importance.csv` | "What influences the scores" charts (optional) |
+| `Data/Processed/test_claims.csv` | One-click report on the Performance page (optional) |
 
-## Batch CSV Input
+`final_test_evaluation.csv` must contain the columns `Accuracy`, `Precision`, `Recall`, `F1` and `ROC_AUC`. `feature_importance.csv` must contain `Feature` and `Importance`.
 
-The batch assessment page expects a CSV containing the model input features with the column names and schema used by the preprocessing pipeline. Include the engineered fields required by the model:
+### Using the application
 
-- `claim_month`
-- `claim_day_of_week`
-- `reporting_delay_days`
-- `policy_tenure_years`
-- `vehicle_age_at_claim`
+**Assess a claim.** Work through the five steps (Claim, Customer, Policy, Incident, Vehicle). Use only information available when the claim was first submitted; do not enter investigation outcomes. The result shows a risk score and one of three priorities: *High priority*, *Review recommended* or *Lower priority*. It can be saved as a CSV.
 
-Do not provide target labels or post-investigation/post-decision information as model inputs. The saved preprocessor handles missing values and categorical encoding.
+**Batch upload.** Use *Download template* to get the expected column layout, fill it in, then drag the CSV onto the upload area and choose *Assess all claims*. Claims are ranked from highest to lowest risk and can be downloaded. The file must contain every model input column, including the five engineered fields above. It must not contain post-investigation or post-decision information. If columns are missing, the app lists them.
 
-## Limitations and Responsible Use
+**Performance report.** The application asks the model to score claims whose true outcome is known and builds a classification report from the answers: precision, recall, F1 and support per class, overall accuracy and ROC-AUC, a confusion matrix, and the most influential factors. If `Data/Processed/test_claims.csv` exists, the report runs automatically. Otherwise, choose any labelled CSV. It needs the model input columns plus a label column, which is detected automatically (`fraudulent`, `fraud`, `is_fraud` and similar), or you will be asked to pick one.
 
-- The dataset's labels and feature distributions may not represent real insurer claim populations.
-- Model performance is moderate and does not justify automatic claim rejection or accusations of fraud.
-- The selected threshold reflects one validation split and may not transfer to other datasets or business settings.
-- SMOTE is currently applied after one-hot encoding. This can create fractional values in encoded categorical columns and is a methodological limitation.
+## Reproducing the experiment
+
+1. Install dependencies and place the dataset (see [Installation](#installation)).
+2. Run `src/EDA.ipynb` to inspect the data.
+3. Run `src/preprocessing.ipynb` to create the files in `Data/Processed/`.
+4. Run `src/train.py` (which uses `src/model.py`) to train the models and write the model, threshold and report files.
+5. Check that the [required artifacts](#required-artifacts) exist, then launch the application.
+
+If you change the preprocessing or training workflow, regenerate every artifact together so the application never mixes files from different runs.
+
+## Limitations and responsible use
+
+- The dataset's labels and feature distributions may not match a real insurer's claim population.
+- Model performance is moderate. It does not justify automatic claim rejection or accusing anyone of fraud.
+- The threshold reflects a single validation split and may not transfer to other datasets or business settings.
+- SMOTE is applied after one-hot encoding, which can create fractional values in encoded categorical columns. This is a methodological limitation.
 - Impurity-based Random Forest feature importance can be biased and is not causal evidence.
-- The displayed model score is not established as a calibrated probability.
-- Fairness, privacy, data quality, drift monitoring, and external validation require further assessment before real-world use.
+- The score is not a calibrated probability.
+- Fairness, privacy, data quality, drift monitoring and external validation need further assessment before any real-world use.
 
-The system should support trained investigators only. Human review and independent evidence are required for every claim decision.
+ClaimGuard should support trained investigators only. Human review and independent evidence are required for every claim decision.
 
-## Future Work
+## Future work
 
-- Add claim-level explanations for individual assessments.
-- Evaluate probability calibration and threshold stability.
-- Investigate imbalance-handling approaches that preserve categorical feature structure.
-- Validate on independent, real-world data where permitted.
-- Add investigator feedback and audit history.
-- Assess fairness and model drift before operational deployment.
+- Claim-level explanations for individual assessments
+- Probability calibration and threshold-stability checks
+- Imbalance handling that preserves categorical structure
+- Validation on independent, real-world data where permitted
+- Investigator feedback and audit history
+- Fairness and drift assessment before any deployment
 
 ## Team
 
@@ -416,4 +280,4 @@ Developed as a three-student academic project.
 
 ## Disclaimer
 
-This project is intended for **research and educational purposes only**.
+This project is for **research and educational purposes only**.
