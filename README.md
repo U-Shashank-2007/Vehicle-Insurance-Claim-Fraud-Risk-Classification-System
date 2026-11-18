@@ -224,7 +224,7 @@ Start from the project root:
 ```powershell
 # Optional AI feature (PowerShell)
 $env:OPENAI_API_KEY="your-real-api-key"
-$env:OPENAI_MODEL="gpt-5.6-luna"
+$env:OPENAI_MODEL="gpt-6-luna"
 
 python app.py
 ```
@@ -239,7 +239,7 @@ saved assessment CSV.
 Configure `OPENAI_API_KEY` as an environment variable before starting the
 application. Optional settings are `OPENAI_BASE_URL` (default:
 `https://api.openai.com/v1`) and `OPENAI_MODEL` (default:
-`gpt-5.6-luna`). The integration supports OpenAI-compatible Responses API
+`gpt-6-luna`). The integration supports OpenAI-compatible Responses API
 endpoints. It uses the Python standard library; no extra package is required.
 
 See [AI_FEATURES.md](AI_FEATURES.md) for provider configuration, privacy
