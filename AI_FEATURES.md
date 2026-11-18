@@ -52,7 +52,10 @@ level and occupation) are excluded.
 Do not submit real claimant data unless you have the appropriate permission,
 legal basis, provider terms, retention controls and organizational approval.
 A feature-value combination may still be identifying, so use synthetic or
-properly de-identified data for demonstrations.
+properly de-identified data for demonstrations. The request sets the Responses
+API `store` option to false, disabling storage for later API retrieval; this
+does not override other provider-side abuse-monitoring, logging, or contractual
+retention policies.
 
 LLM output can be incorrect, incomplete or overconfident. Verify every
 suggestion against original records. ClaimGuard is for educational and
