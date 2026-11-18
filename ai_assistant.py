@@ -100,7 +100,7 @@ def generate_investigation_brief(
         "or facts. If no meaningful issue is supported, say that no clear "
         "inconsistency is apparent from the entered details. "
         "Format the answer in simple Markdown with exactly these sections: "
-        "'## In plain English' (two short sentences: the supplied score and "
+        "'## Claim screening summary' (two short sentences: the supplied score and "
         "priority, plus a reminder that this is only a screening result); "
         "'## Details worth checking' (zero to three concise bullets written "
         "as natural sentences, not repeated sublabels); and "
