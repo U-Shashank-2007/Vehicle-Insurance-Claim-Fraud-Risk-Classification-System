@@ -43,9 +43,11 @@ API key in source code, screenshots, Git history, or a committed `.env` file.
 
 ## Privacy and responsible use
 
-The feature sends model input attributes and the already-computed risk score
-to the configured third-party API. Common direct identifiers (names, email,
-phone, address, customer/policy/claim IDs and date of birth) are excluded.
+The feature sends a minimized set of model input attributes and the already-
+computed risk score to the configured third-party API. Common direct
+identifiers (names, email, phone, address, customer/policy/claim IDs and date
+of birth) and demographic attributes (age, gender, marital status, education
+level and occupation) are excluded.
 Do not submit real claimant data unless you have the appropriate permission,
 legal basis, provider terms, retention controls and organizational approval.
 A feature-value combination may still be identifying, so use synthetic or
