@@ -892,6 +892,7 @@ class NewClaimPage(QWidget):
         self._inputs: dict[str, QWidget] = {}
         self._specs: dict[str, FieldSpec] = {}
         self._last: Optional[tuple[dict, Assessment]] = None
+        self._last_ai_brief = ""
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 24)
@@ -1101,6 +1102,7 @@ class NewClaimPage(QWidget):
         self._stack.setCurrentIndex(1)
         self._gauge.show_score(result.score, tone)
         self._ai_output.clear()
+        self._last_ai_brief = ""
         self._ai_button.setEnabled(True)
         self._ai_button.setText("Generate AI investigation brief")
         LOG.add(result.score, result.level, result.title)
@@ -1119,6 +1121,7 @@ class NewClaimPage(QWidget):
         self._worker.start()
 
     def _show_ai_brief(self, brief: str):
+        self._last_ai_brief = brief
         self._ai_output.setPlainText(brief)
         self._ai_button.setEnabled(True)
         self._ai_button.setText("Regenerate AI investigation brief")
@@ -1137,7 +1140,9 @@ class NewClaimPage(QWidget):
         path, _ = QFileDialog.getSaveFileName(
             self, "Save result", "claim_assessment.csv", "CSV files (*.csv)")
         if path:
-            self._service.export_frame(*self._last).to_csv(path, index=False)
+            export = self._service.export_frame(*self._last)
+            export["AI investigation brief"] = self._last_ai_brief
+            export.to_csv(path, index=False)
 
 
 class DropZone(QFrame):
