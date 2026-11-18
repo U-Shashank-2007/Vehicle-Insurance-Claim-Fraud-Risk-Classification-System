@@ -1122,7 +1122,9 @@ class NewClaimPage(QWidget):
 
     def _show_ai_brief(self, brief: str):
         self._last_ai_brief = brief
-        self._ai_output.setPlainText(brief)
+        # Render the assistant's Markdown as formatted rich text instead of
+        # showing raw markers such as ###, **bold**, and numbered-list syntax.
+        self._ai_output.setMarkdown(brief)
         self._ai_button.setEnabled(True)
         self._ai_button.setText("Regenerate AI investigation brief")
 
