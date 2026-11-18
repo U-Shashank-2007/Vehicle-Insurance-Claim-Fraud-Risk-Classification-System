@@ -20,7 +20,7 @@ PowerShell (current terminal):
 ```powershell
 $env:OPENAI_API_KEY="your-real-api-key"
 $env:OPENAI_MODEL="gpt-4o-mini"
-python claimguard_app.py
+python app.py
 ```
 
 Optional provider configuration:
