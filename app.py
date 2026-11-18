@@ -16,7 +16,7 @@ from typing import Callable, Optional
 import pandas as pd
 from PySide6.QtCore import (
     QAbstractTableModel, QModelIndex, QObject, QPointF, QRectF, QRegularExpression, QSettings, QSize, Qt,
-    QThread, QVariantAnimation, Signal,
+    QThread, QSortFilterProxyModel, QVariantAnimation, Signal,
 )
 from PySide6.QtGui import (
     QBrush, QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap,
@@ -25,7 +25,6 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractItemView, QAbstractSpinBox, QApplication, QButtonGroup, QComboBox,
     QDoubleSpinBox, QFileDialog, QFrame, QGraphicsDropShadowEffect, QLineEdit, QListView,
-    QSortFilterProxyModel,
     QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QMainWindow,
     QMessageBox, QPushButton, QScrollArea, QSizePolicy, QStackedWidget,
     QTableView, QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
@@ -1620,6 +1619,7 @@ class BatchPage(QWidget):
             "Preparing an explanation for the selected claim. "
             "The batch model score and ranking will not be changed."
         )
+        self._ai_requested_row = row_index
         self._worker = Worker(generate_investigation_brief, values, assessment)
         self._worker.done.connect(self._show_selected_claim_ai)
         self._worker.failed.connect(self._selected_claim_ai_failed)
@@ -1629,7 +1629,9 @@ class BatchPage(QWidget):
         self._batch_ai_output.setMarkdown(brief)
         self._batch_ai_button.setEnabled(True)
         self._batch_ai_button.setText("Regenerate selected claim explanation")
-        selected_id = f"CLM-{row_index + 1:04d}" if row_index is not None else "selected claim"
+        requested_row = getattr(self, "_ai_requested_row", None)
+        selected_id = (f"CLM-{requested_row + 1:04d}"
+                       if requested_row is not None else "selected claim")
         self._batch_ai_note.setText(
             f"Explanation for {selected_id}. AI guidance is advisory; it does not alter "
             "the model score, priority, batch ranking, or claim decision."
