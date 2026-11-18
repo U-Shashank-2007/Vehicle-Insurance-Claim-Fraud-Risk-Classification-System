@@ -25,6 +25,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QAbstractItemView, QAbstractSpinBox, QApplication, QButtonGroup, QComboBox,
     QDoubleSpinBox, QFileDialog, QFrame, QGraphicsDropShadowEffect, QLineEdit, QListView,
+    QSortFilterProxyModel,
     QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QMainWindow,
     QMessageBox, QPushButton, QScrollArea, QSizePolicy, QStackedWidget,
     QTableView, QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
@@ -227,6 +228,8 @@ QTableView::item:selected, QTableWidget::item:selected {
     background: $orange_tint; color: $text; border-left: 3px solid $orange;
 }
 QTableView::item:hover { background: $surface2; }
+QLineEdit#tableSearch { min-width: 220px; }
+QComboBox#tableFilter { min-width: 170px; }
 QHeaderView { background: $surface; }
 QHeaderView::section {
     background: $surface2; color: $text; padding: 12px 12px; border: none;
@@ -800,6 +803,8 @@ class PandasModel(QAbstractTableModel):
             return None
         value = self._df.iat[index.row(), index.column()]
         col = self._df.columns[index.column()]
+        if role == Qt.UserRole:
+            return value
         if role == Qt.DisplayRole:
             if col == "Risk score (%)":
                 return f"{float(value):.1f}%"
@@ -815,12 +820,47 @@ class PandasModel(QAbstractTableModel):
             f = QFont()
             f.setBold(True)
             return f
+        if role == Qt.TextAlignmentRole and col == "Risk score (%)":
+            return int(Qt.AlignRight | Qt.AlignVCenter)
         return None
 
     def headerData(self, section, orientation, role=Qt.DisplayRole):
         if role == Qt.DisplayRole and orientation == Qt.Horizontal:
             return str(self._df.columns[section])
         return None
+
+
+class ClaimFilterProxyModel(QSortFilterProxyModel):
+    """Search all visible claim fields and optionally filter by model priority."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._priority = "All priorities"
+        self.setFilterCaseSensitivity(Qt.CaseInsensitive)
+        self.setFilterKeyColumn(-1)
+        self.setSortRole(Qt.UserRole)
+
+    def set_priority(self, value: str):
+        self._priority = value
+        self.invalidateFilter()
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        model = self.sourceModel()
+        if model is None:
+            return True
+        if self._priority != "All priorities":
+            priority_col = model._df.columns.get_loc("Priority")
+            priority = str(model.index(source_row, priority_col).data(Qt.UserRole))
+            if priority != self._priority:
+                return False
+        pattern = self.filterRegularExpression()
+        if pattern.pattern():
+            for col in range(model.columnCount()):
+                value = str(model.index(source_row, col).data(Qt.UserRole))
+                if pattern.match(value).hasMatch():
+                    return True
+            return False
+        return True
 
 
 # ===========================================================================
@@ -1330,7 +1370,25 @@ class BatchPage(QWidget):
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self._table.setMinimumHeight(320)
-        self._table.setToolTip("Select a claim row to enable its AI explanation.")
+        self._table.setToolTip("Select a claim row to enable its AI explanation. Click a column heading to sort.")
+        toolbar = QHBoxLayout()
+        self._search = QLineEdit()
+        self._search.setObjectName("tableSearch")
+        self._search.setPlaceholderText("Search claims, incident, vehicle...")
+        self._search.setClearButtonEnabled(True)
+        self._search.setToolTip("Search across the visible claim columns.")
+        self._search.textChanged.connect(self._filter_batch_rows)
+        self._priority_filter = QComboBox()
+        self._priority_filter.setObjectName("tableFilter")
+        self._priority_filter.addItems([
+            "All priorities", "High priority", "Review recommended", "Lower priority"
+        ])
+        self._priority_filter.currentTextChanged.connect(self._filter_batch_rows)
+        self._visible_count = label("", "muted")
+        toolbar.addWidget(self._search, 1)
+        toolbar.addWidget(self._priority_filter)
+        toolbar.addWidget(self._visible_count)
+        tl.addLayout(toolbar)
         tl.addWidget(self._table)
         self._table_card.hide()
         root.addWidget(self._table_card, 1)
@@ -1461,9 +1519,17 @@ class BatchPage(QWidget):
         visible = [c for c in preferred if c in results.columns]
         display = results[visible].copy()
         display.insert(0, "Claim #", [f"CLM-{i + 1:04d}" for i in range(len(display))])
-        self._table.setModel(PandasModel(display))
+        self._source_model = PandasModel(display)
+        self._proxy_model = ClaimFilterProxyModel(self)
+        self._proxy_model.setSourceModel(self._source_model)
+        self._table.setModel(self._proxy_model)
+        self._table.setSortingEnabled(True)
+        self._table.sortByColumn(1, Qt.DescendingOrder)
         self._table.selectionModel().selectionChanged.connect(self._on_batch_row_selected)
         self._table.resizeColumnsToContents()
+        self._search.clear()
+        self._priority_filter.setCurrentIndex(0)
+        self._visible_count.setText(f"{len(results):,} claims")
         self._table_card.show()
         self._batch_ai_output.clear()
         self._batch_ai_note.setText(
@@ -1479,15 +1545,36 @@ class BatchPage(QWidget):
         self._info.setText("Showing the first 1,000 rows. The download includes every row."
                            if total > 1000 else "")
 
+    def _filter_batch_rows(self, *_):
+        if not hasattr(self, "_proxy_model"):
+            return
+        self._proxy_model.setFilterFixedString(self._search.text().strip())
+        self._proxy_model.set_priority(self._priority_filter.currentText())
+        visible = self._proxy_model.rowCount()
+        total = len(self._results) if self._results is not None else 0
+        self._visible_count.setText(f"Showing {visible:,} of {total:,}")
+        if self._table.selectionModel():
+            self._table.clearSelection()
+        self._batch_ai_button.setEnabled(False)
+        self._batch_ai_output.clear()
+        self._batch_ai_note.setText("Select a visible claim row to generate its explanation.")
+
+    def _selected_result_index(self):
+        selected = self._table.selectionModel().selectedRows()
+        if not selected:
+            return None
+        source_index = self._proxy_model.mapToSource(selected[0])
+        return source_index.row()
+
     def _on_batch_row_selected(self, *_):
         if self._results is None:
             return
-        selected = self._table.selectionModel().selectedRows()
-        if not selected:
+        result_index = self._selected_result_index()
+        if result_index is None:
             self._batch_ai_button.setEnabled(False)
             self._batch_ai_note.setText("Select a claim row to enable its AI explanation.")
             return
-        row = self._results.iloc[selected[0].row()]
+        row = self._results.iloc[result_index]
         claim_amount = row.get("claim_amount", "not supplied")
         incident = row.get("incident_type", "incident not specified")
         priority = row.get("Priority", "not available")
@@ -1510,7 +1597,9 @@ class BatchPage(QWidget):
             )
             return
 
-        row_index = selected[0].row()
+        row_index = self._selected_result_index()
+        if row_index is None:
+            return
         record = self._results.iloc[row_index]
         # Recover only the model input features; exclude result columns.
         feature_names = self._service._features
@@ -1540,8 +1629,7 @@ class BatchPage(QWidget):
         self._batch_ai_output.setMarkdown(brief)
         self._batch_ai_button.setEnabled(True)
         self._batch_ai_button.setText("Regenerate selected claim explanation")
-        selected = self._table.selectionModel().selectedRows()
-        selected_id = f"CLM-{selected[0].row() + 1:04d}" if selected else "selected claim"
+        selected_id = f"CLM-{row_index + 1:04d}" if row_index is not None else "selected claim"
         self._batch_ai_note.setText(
             f"Explanation for {selected_id}. AI guidance is advisory; it does not alter "
             "the model score, priority, batch ranking, or claim decision."
