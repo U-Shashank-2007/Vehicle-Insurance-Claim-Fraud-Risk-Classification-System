@@ -19,7 +19,7 @@ from PySide6.QtCore import (
     QThread, QVariantAnimation, Signal,
 )
 from PySide6.QtGui import (
-    QColor, QFont, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap,
+    QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap,
     QPolygonF, QRegularExpressionValidator,
 )
 from PySide6.QtWidgets import (
@@ -121,7 +121,12 @@ QPushButton#nav {
     color: $muted; background: transparent; font-weight: 600;
 }
 QPushButton#nav:hover { background: $surface2; color: $text; }
-QPushButton#nav:checked { background: $orange_tint; color: $orange_text; }
+QPushButton#nav:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 $orange_tint, stop:1 $surface2);
+    color: $orange_text; border-left: 3px solid $orange;
+}
+QPushButton#nav:focus { border: 1px solid $orange; }
 
 QLabel#pageTitle { font-size: 24px; font-weight: 700; }
 QLabel#muted { color: $muted; font-size: 12px; }
@@ -134,6 +139,7 @@ QFrame#card {
         stop:0 $surface, stop:1 $surface2);
     border: 1px solid $border; border-radius: 20px;
 }
+QFrame#card:hover { border-color: $border2; }
 QFrame#dropzone {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
         stop:0 $surface, stop:1 $surface2);
@@ -550,11 +556,24 @@ class Gauge(QWidget):
         m = 20
         rect = QRectF((self.width() - side) / 2 + m, (self.height() - side) / 2 + m,
                       side - 2 * m, side - 2 * m)
+        # Soft offset stroke creates a restrained raised / 3D dial effect.
+        shadow_pen = QPen(QColor(20, 35, 55, 24), 19)
+        shadow_pen.setCapStyle(Qt.RoundCap)
+        p.setPen(shadow_pen)
+        p.drawArc(rect.translated(0, 3), 225 * 16, -270 * 16)
+
         pen = QPen(THEME.color("track"), 16)
         pen.setCapStyle(Qt.RoundCap)
         p.setPen(pen)
         p.drawArc(rect, 225 * 16, -270 * 16)
-        pen.setColor(THEME.tone(self._tone))
+
+        progress = QLinearGradient(rect.topLeft(), rect.bottomRight())
+        progress.setColorAt(0.0, THEME.tone(self._tone).lighter(118))
+        progress.setColorAt(1.0, THEME.tone(self._tone).darker(108))
+        pen = QPen()
+        pen.setWidth(16)
+        pen.setCapStyle(Qt.RoundCap)
+        pen.setBrush(progress)
         p.setPen(pen)
         p.drawArc(rect, 225 * 16, int(-270 * 16 * min(max(self._value, 0), 1)))
 
@@ -610,7 +629,14 @@ class ColumnChart(QWidget):
             bh = plot.height() * max(0.0, min(val, 1.0))
             bar = QRectF(cx - bw / 2, plot.bottom() - max(bh, 3), bw, max(bh, 3))
             p.setPen(Qt.NoPen)
-            p.setBrush(THEME.tone(TONES[i % 3]))
+            # Small offset and gradient give dashboard bars a subtle dimensional edge.
+            p.setBrush(QColor(20, 35, 55, 22))
+            p.drawRoundedRect(bar.translated(0, 3), 9, 9)
+            grad = QLinearGradient(bar.topLeft(), bar.bottomLeft())
+            tone = THEME.tone(TONES[i % 3])
+            grad.setColorAt(0.0, tone.lighter(116))
+            grad.setColorAt(1.0, tone.darker(104))
+            p.setBrush(grad)
             p.drawRoundedRect(bar, 9, 9)
             bold = QFont(f)
             bold.setBold(True)
