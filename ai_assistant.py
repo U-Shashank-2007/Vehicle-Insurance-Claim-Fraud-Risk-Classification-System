@@ -16,7 +16,6 @@ from urllib.request import Request, urlopen
 
 from model_service import Assessment, _pretty
 
-DEFAULT_ENDPOINT = "https://api.openai.com/v1/responses"
 DEFAULT_MODEL = "gpt-5.6-luna"
 SENSITIVE_KEYS = {
     "customer_id", "policy_number", "claim_number", "name", "first_name",
@@ -127,7 +126,7 @@ def generate_investigation_brief(
                 value = part.get("text")
                 if isinstance(value, str) and value.strip():
                     text_parts.append(value.strip())
-    text = "\\n".join(text_parts)
+    text = "\n".join(text_parts)
     if not text.strip():
         raise RuntimeError("AI provider response did not contain an answer.")
     return text.strip()
