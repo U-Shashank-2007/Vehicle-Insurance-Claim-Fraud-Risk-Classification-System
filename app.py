@@ -41,23 +41,23 @@ from ai_assistant import generate_investigation_brief
 # ===========================================================================
 PALETTES = {
     "light": dict(
-        bg="#F5F3F0", sidebar="#FFFFFF", surface="#FFFFFF", surface2="#F4F2EF",
-        border="#ECE8E2", border2="#D8D2CA", text="#1C1917", muted="#8A837B",
-        track="#EFEBE6",
-        orange="#FF6A13", orange_hover="#E85D0A", orange_text="#E85D0A",
+        bg="#F7F9FC", sidebar="#FFFFFF", surface="#FFFFFF", surface2="#F2F5F9",
+        border="#E4E9F0", border2="#CBD5E1", text="#172033", muted="#667085",
+        track="#E8EDF4",
+        orange="#F97316", orange_hover="#EA580C", orange_text="#C2410C",
         on_orange="#FFFFFF",
-        green="#22E06B", green_text="#0B9B45",
-        pink="#FF2E93", pink_text="#E0157A",
+        green="#16A36A", green_text="#087443",
+        pink="#E54875", pink_text="#BE345D",
         tint=0.12,
     ),
     "dark": dict(
-        bg="#0E0D10", sidebar="#131216", surface="#19181C", surface2="#232127",
-        border="#2A282F", border2="#3A3741", text="#F6F3EF", muted="#8F8A96",
-        track="#2A282F",
-        orange="#FF7A2B", orange_hover="#FF8F4D", orange_text="#FF8F4D",
-        on_orange="#1A0E05",
-        green="#3DFF8F", green_text="#3DFF8F",
-        pink="#FF4DA6", pink_text="#FF6FB8",
+        bg="#101828", sidebar="#172235", surface="#1D2A3D", surface2="#243349",
+        border="#34445B", border2="#465A73", text="#F8FAFC", muted="#B0BDCE",
+        track="#34445B",
+        orange="#FB923C", orange_hover="#FDBA74", orange_text="#FDBA74",
+        on_orange="#271306",
+        green="#34D399", green_text="#6EE7B7",
+        pink="#FB7185", pink_text="#FDA4AF",
         tint=0.16,
     ),
 }
@@ -182,14 +182,22 @@ QComboBox QAbstractItemView {
 QComboBox QAbstractItemView::item { min-height: 30px; padding-left: 8px; border-radius: 6px; }
 
 QTableView, QTableWidget {
-    background: $surface; border: none; gridline-color: transparent;
-    selection-background-color: $orange_tint; selection-color: $text; outline: none;
+    background: $surface; alternate-background-color: $surface2;
+    border: 1px solid $border; border-radius: 10px;
+    gridline-color: transparent; selection-background-color: $orange_tint;
+    selection-color: $text; outline: none;
 }
-QTableView::item, QTableWidget::item { border-bottom: 1px solid $border; padding: 0 12px; }
+QTableView::item, QTableWidget::item {
+    color: $text; border-bottom: 1px solid $border; padding: 8px 12px;
+}
+QTableView::item:selected, QTableWidget::item:selected {
+    background: $orange_tint; color: $text; border-left: 3px solid $orange;
+}
+QTableView::item:hover { background: $surface2; }
 QHeaderView { background: $surface; }
 QHeaderView::section {
-    background: $surface; color: $muted; padding: 10px 12px; border: none;
-    border-bottom: 1px solid $border; font-weight: 600; font-size: 12px;
+    background: $surface2; color: $text; padding: 12px 12px; border: none;
+    border-bottom: 1px solid $border; font-weight: 700; font-size: 12px;
 }
 QTableCornerButton::section { background: $surface; border: none; }
 
@@ -721,6 +729,11 @@ class PandasModel(QAbstractTableModel):
         super().__init__()
         self._df = df.head(limit).reset_index(drop=True)
 
+    def flags(self, index):
+        if not index.isValid():
+            return Qt.NoItemFlags
+        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
+
     def rowCount(self, parent=QModelIndex()):
         return len(self._df)
 
@@ -733,7 +746,11 @@ class PandasModel(QAbstractTableModel):
         value = self._df.iat[index.row(), index.column()]
         col = self._df.columns[index.column()]
         if role == Qt.DisplayRole:
-            return f"{value:,.2f}" if isinstance(value, float) else str(value)
+            if col == "Risk score (%)":
+                return f"{float(value):.1f}%"
+            if isinstance(value, float):
+                return f"{value:,.2f}"
+            return str(value)
         if role == Qt.ForegroundRole and col == "Priority":
             tone = {"High priority": "pink", "Review recommended": "orange",
                     "Lower priority": "green"}.get(str(value))
@@ -1191,9 +1208,12 @@ class BatchPage(QWidget):
         self._data: Optional[pd.DataFrame] = None
         self._results: Optional[pd.DataFrame] = None
 
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 24)
-        root.setSpacing(18)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        content = QWidget()
+        root = QVBoxLayout(content)
+        root.setContentsMargins(0, 0, 8, 24)
+        root.setSpacing(16)
 
         self._drop = DropZone()
         self._drop.fileDropped.connect(self._load)
@@ -1238,13 +1258,24 @@ class BatchPage(QWidget):
         tl = QVBoxLayout(self._table_card)
         tl.setContentsMargins(8, 8, 8, 8)
         self._table = QTableView()
+        self._table.setObjectName("claimsResultsTable")
         self._table.setShowGrid(False)
+        self._table.setAlternatingRowColors(True)
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self._table.setSelectionMode(QAbstractItemView.SingleSelection)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._table.setFocusPolicy(Qt.StrongFocus)
+        self._table.setSortingEnabled(False)
+        self._table.setWordWrap(False)
+        self._table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self._table.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
         self._table.verticalHeader().setVisible(False)
-        self._table.verticalHeader().setDefaultSectionSize(44)
+        self._table.verticalHeader().setDefaultSectionSize(48)
+        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self._table.setMinimumHeight(320)
+        self._table.setToolTip("Select a claim row to enable its AI explanation.")
         tl.addWidget(self._table)
         self._table_card.hide()
         root.addWidget(self._table_card, 1)
@@ -1278,8 +1309,8 @@ class BatchPage(QWidget):
         self._batch_ai_output.setPlaceholderText(
             "The selected claim's AI explanation will appear here."
         )
-        self._batch_ai_output.setMinimumHeight(130)
-        self._batch_ai_output.setMaximumHeight(240)
+        self._batch_ai_output.setMinimumHeight(170)
+        self._batch_ai_output.setMaximumHeight(280)
         ai_lay.addWidget(self._batch_ai_output)
         self._batch_ai_card.hide()
         root.addWidget(self._batch_ai_card)
@@ -1293,6 +1324,7 @@ class BatchPage(QWidget):
         foot.addWidget(self._export)
         root.addLayout(foot)
         root.addStretch(0)
+        outer.addWidget(scrollable(content))
 
     def _template(self):
         path, _ = QFileDialog.getSaveFileName(
@@ -1308,9 +1340,23 @@ class BatchPage(QWidget):
 
     def _load(self, path: str):
         try:
-            self._data = pd.read_csv(path)
+            data = pd.read_csv(path)
+            data.columns = [str(c).strip() for c in data.columns]
+            if data.empty:
+                raise ServiceError("The CSV file contains no claim rows.")
+            if data.columns.duplicated().any():
+                raise ServiceError("The CSV contains duplicate column names. Please correct the file and try again.")
+            missing = [c for c in self._service._features if c not in data.columns]
+            if missing:
+                preview = ", ".join(missing[:8])
+                suffix = " ..." if len(missing) > 8 else ""
+                raise ServiceError(
+                    f"The file is missing {len(missing)} required column(s): {preview}{suffix}. "
+                    "Download the ClaimGuard template to check the required format."
+                )
+            self._data = data
         except Exception as exc:  # noqa: BLE001
-            QMessageBox.warning(self, "Couldn't open file", str(exc))
+            QMessageBox.warning(self, "Couldn't open claims file", str(exc))
             return
         name = path.replace("\\", "/").split("/")[-1]
         self._file_lbl.setText(f"{name}  ·  {len(self._data):,} claims ready")
@@ -1320,6 +1366,9 @@ class BatchPage(QWidget):
         self._results = None
         self._cards.hide()
         self._table_card.hide()
+        self._batch_ai_card.hide()
+        self._batch_ai_output.clear()
+        self._batch_ai_button.setEnabled(False)
         self._export.hide()
         self._info.setText("")
 
@@ -1342,11 +1391,23 @@ class BatchPage(QWidget):
         self._run.setText("Assess all claims")
         flagged = int((results["Flagged for review"] == "Yes").sum())
         total = len(results)
+        if total == 0:
+            self._fail("No claims were returned for assessment.")
+            return
         self._c_total.set_value(f"{total:,}")
         self._c_flag.set_value(f"{flagged:,}")
         self._c_share.set_value(f"{flagged / total:.1%}" if total else "0%")
         self._cards.show()
-        self._table.setModel(PandasModel(results))
+        preferred = [
+            "Risk score (%)", "Priority", "Flagged for review", "claim_amount",
+            "incident_type", "accident_severity", "policy_active",
+            "vehicle_make", "vehicle_model",
+        ]
+        visible = [c for c in preferred if c in results.columns]
+        display = results[visible].copy()
+        display.insert(0, "Claim #", [f"CLM-{i + 1:04d}" for i in range(len(display))])
+        self._table.setModel(PandasModel(display))
+        self._table.selectionModel().selectionChanged.connect(self._on_batch_row_selected)
         self._table.resizeColumnsToContents()
         self._table_card.show()
         self._batch_ai_output.clear()
@@ -1354,12 +1415,34 @@ class BatchPage(QWidget):
             "Select one claim in the results table, then choose Explain selected claim with AI. "
             "Only the selected row is sent to the AI provider."
         )
-        self._batch_ai_button.setEnabled(True)
+        self._batch_ai_button.setEnabled(False)
         self._batch_ai_button.setText("Explain selected claim with AI")
         self._batch_ai_card.show()
+        self._table.selectRow(0)
+        self._batch_ai_button.setEnabled(bool(len(results)))
         self._export.show()
         self._info.setText("Showing the first 1,000 rows. The download includes every row."
                            if total > 1000 else "")
+
+    def _on_batch_row_selected(self, *_):
+        if self._results is None:
+            return
+        selected = self._table.selectionModel().selectedRows()
+        if not selected:
+            self._batch_ai_button.setEnabled(False)
+            self._batch_ai_note.setText("Select a claim row to enable its AI explanation.")
+            return
+        row = self._results.iloc[selected[0].row()]
+        claim_amount = row.get("claim_amount", "not supplied")
+        incident = row.get("incident_type", "incident not specified")
+        priority = row.get("Priority", "not available")
+        self._batch_ai_button.setEnabled(True)
+        self._batch_ai_note.setText(
+            f"Selected claim: {incident}  ·  Claim amount: {claim_amount}  ·  {priority}. "
+            "AI guidance is advisory and does not change the model result."
+        )
+        self._batch_ai_output.clear()
+        self._batch_ai_button.setText("Explain selected claim with AI")
 
     def _explain_selected_claim(self):
         if self._results is None:
@@ -1402,9 +1485,11 @@ class BatchPage(QWidget):
         self._batch_ai_output.setMarkdown(brief)
         self._batch_ai_button.setEnabled(True)
         self._batch_ai_button.setText("Regenerate selected claim explanation")
+        selected = self._table.selectionModel().selectedRows()
+        selected_id = f"CLM-{selected[0].row() + 1:04d}" if selected else "selected claim"
         self._batch_ai_note.setText(
-            "AI guidance for the selected claim only. It does not alter the model score, "
-            "priority, batch ranking, or claim decision."
+            f"Explanation for {selected_id}. AI guidance is advisory; it does not alter "
+            "the model score, priority, batch ranking, or claim decision."
         )
 
     def _selected_claim_ai_failed(self, message: str):
@@ -1624,7 +1709,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("ClaimGuard")
         self.resize(1320, 840)
-        self.setMinimumSize(1080, 700)
+        self.setMinimumSize(980, 640)
 
         root = QWidget()
         root.setObjectName("root")
@@ -1637,7 +1722,7 @@ class MainWindow(QMainWindow):
         side = QWidget()
         side.setObjectName("sidebar")
         side.setAttribute(Qt.WA_StyledBackground, True)
-        side.setFixedWidth(248)
+        side.setFixedWidth(224)
         sl = QVBoxLayout(side)
         sl.setContentsMargins(18, 26, 18, 22)
         sl.setSpacing(4)
@@ -1674,7 +1759,7 @@ class MainWindow(QMainWindow):
         # ---- content ----
         content = QWidget()
         cl = QVBoxLayout(content)
-        cl.setContentsMargins(36, 28, 18, 0)
+        cl.setContentsMargins(30, 24, 24, 0)
         cl.setSpacing(22)
 
         top = QHBoxLayout()
