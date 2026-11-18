@@ -1250,6 +1250,40 @@ class BatchPage(QWidget):
         root.addWidget(self._table_card, 1)
         THEME.changed.connect(self._table.viewport().update)
 
+        # AI guidance is generated only for the single row selected by the
+        # user. This avoids sending an entire uploaded claims file to the API.
+        self._batch_ai_card = Surface(False)
+        ai_lay = QVBoxLayout(self._batch_ai_card)
+        ai_lay.setContentsMargins(18, 16, 18, 16)
+        ai_lay.setSpacing(10)
+        ai_head = QHBoxLayout()
+        ai_title = label("AI claim explanation", "cardHeading")
+        ai_head.addWidget(ai_title)
+        ai_head.addStretch()
+        self._batch_ai_button = make_button(
+            "Explain selected claim with AI", "secondary"
+        )
+        self._batch_ai_button.setEnabled(False)
+        self._batch_ai_button.clicked.connect(self._explain_selected_claim)
+        ai_head.addWidget(self._batch_ai_button)
+        ai_lay.addLayout(ai_head)
+        self._batch_ai_note = label(
+            "Select one claim in the results table to generate a plain-language explanation. "
+            "Only that selected claim is sent for AI guidance.",
+            "muted", True
+        )
+        ai_lay.addWidget(self._batch_ai_note)
+        self._batch_ai_output = QTextEdit()
+        self._batch_ai_output.setReadOnly(True)
+        self._batch_ai_output.setPlaceholderText(
+            "The selected claim's AI explanation will appear here."
+        )
+        self._batch_ai_output.setMinimumHeight(130)
+        self._batch_ai_output.setMaximumHeight(240)
+        ai_lay.addWidget(self._batch_ai_output)
+        self._batch_ai_card.hide()
+        root.addWidget(self._batch_ai_card)
+
         foot = QHBoxLayout()
         self._info = label("", "muted")
         self._export = make_button("Download ranked results", "secondary")
@@ -1315,9 +1349,71 @@ class BatchPage(QWidget):
         self._table.setModel(PandasModel(results))
         self._table.resizeColumnsToContents()
         self._table_card.show()
+        self._batch_ai_output.clear()
+        self._batch_ai_note.setText(
+            "Select one claim in the results table, then choose Explain selected claim with AI. "
+            "Only the selected row is sent to the AI provider."
+        )
+        self._batch_ai_button.setEnabled(True)
+        self._batch_ai_button.setText("Explain selected claim with AI")
+        self._batch_ai_card.show()
         self._export.show()
         self._info.setText("Showing the first 1,000 rows. The download includes every row."
                            if total > 1000 else "")
+
+    def _explain_selected_claim(self):
+        if self._results is None:
+            return
+        selected = self._table.selectionModel().selectedRows()
+        if not selected:
+            QMessageBox.information(
+                self, "Select a claim",
+                "Select one row in the results table before requesting an AI explanation."
+            )
+            return
+
+        row_index = selected[0].row()
+        record = self._results.iloc[row_index]
+        # Recover only the model input features; exclude result columns.
+        feature_names = self._service._features
+        values = {name: record[name] for name in feature_names}
+        score = float(record["Risk score (%)"]) / 100.0
+        level, title, message = self._service._level(score)
+        assessment = Assessment(
+            score=score,
+            flagged=str(record["Flagged for review"]).strip().lower() == "yes",
+            level=level,
+            title=str(record["Priority"]),
+            message=message,
+        )
+
+        self._batch_ai_button.setEnabled(False)
+        self._batch_ai_button.setText("Generating explanation...")
+        self._batch_ai_output.setPlainText(
+            "Preparing an explanation for the selected claim. "
+            "The batch model score and ranking will not be changed."
+        )
+        self._worker = Worker(generate_investigation_brief, values, assessment)
+        self._worker.done.connect(self._show_selected_claim_ai)
+        self._worker.failed.connect(self._selected_claim_ai_failed)
+        self._worker.start()
+
+    def _show_selected_claim_ai(self, brief: str):
+        self._batch_ai_output.setMarkdown(brief)
+        self._batch_ai_button.setEnabled(True)
+        self._batch_ai_button.setText("Regenerate selected claim explanation")
+        self._batch_ai_note.setText(
+            "AI guidance for the selected claim only. It does not alter the model score, "
+            "priority, batch ranking, or claim decision."
+        )
+
+    def _selected_claim_ai_failed(self, message: str):
+        self._batch_ai_output.setPlainText(
+            "AI assistance is unavailable. The original batch assessment is unchanged.\n\n"
+            + message
+        )
+        self._batch_ai_button.setEnabled(True)
+        self._batch_ai_button.setText("Retry selected claim explanation")
 
     def _save(self):
         if self._results is None:
