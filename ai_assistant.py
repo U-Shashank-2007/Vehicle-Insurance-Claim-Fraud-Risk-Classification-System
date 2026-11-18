@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 
 from model_service import Assessment, _pretty
 
-DEFAULT_MODEL = "gpt-5.6-luna"
+DEFAULT_MODEL = "gpt-6-luna"
 SENSITIVE_KEYS = {
     "customer_id", "policy_number", "claim_number", "name", "first_name",
     "last_name", "email", "phone", "address", "ssn", "date_of_birth",
@@ -94,6 +94,7 @@ def generate_investigation_brief(
         "model": model,
         "instructions": instructions,
         "input": user_input,
+        "reasoning": {"effort": "low"},
         "max_output_tokens": 700,
     }
     request = Request(
