@@ -96,6 +96,7 @@ def generate_investigation_brief(
         "input": user_input,
         "reasoning": {"effort": "low"},
         "max_output_tokens": 700,
+        "store": False,
     }
     request = Request(
         endpoint,
