@@ -70,7 +70,7 @@ CA-1/
 │   ├── preprocessing.ipynb
 │   ├── model.py
 │   └── train.py
-├── claimguard_app.py      # desktop interface (presentation only)
+├── app.py                # desktop interface (presentation only)
 ├── model_service.py       # model access layer used by the interface
 ├── requirements.txt
 └── README.md
@@ -223,7 +223,7 @@ Start from the project root:
 $env:OPENAI_API_KEY="your-real-api-key"
 $env:OPENAI_MODEL="gpt-4o-mini"
 
-python claimguard_app.py
+python app.py
 ```
 
 ### AI investigation assistant
