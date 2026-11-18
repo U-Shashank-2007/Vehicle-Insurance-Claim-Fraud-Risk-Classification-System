@@ -1062,14 +1062,15 @@ class NewClaimPage(QWidget):
             "AI support explains what to verify. The Random Forest keeps control of the score.",
             "muted", True))
         self._ai_summary = label(
-            "Your AI review checklist will appear here after generation.", "muted", True)
+            "Advisory explanation only • The model score and claim decision remain separate.",
+            "muted", True)
         right.addWidget(self._ai_summary)
         self._ai_output = QTextEdit()
         self._ai_output.setReadOnly(True)
         self._ai_output.setPlaceholderText(
             "Your AI-generated investigation brief will appear here.")
-        self._ai_output.setMinimumHeight(150)
-        self._ai_output.setMaximumHeight(230)
+        self._ai_output.setMinimumHeight(210)
+        self._ai_output.setMaximumHeight(340)
         right.addWidget(self._ai_output)
         right.addSpacing(8)
         btns = QHBoxLayout()
@@ -1125,26 +1126,14 @@ class NewClaimPage(QWidget):
 
     def _show_ai_brief(self, brief: str):
         self._last_ai_brief = brief
-        # Count the numbered verification items for a compact visual summary.
-        checks = sum(
-            1 for line in brief.splitlines()
-            if line.strip()[:1].isdigit()
-            and len(line.strip()) > 1
-            and line.strip()[1] in ".)"
+        # Keep the model score in the gauge; the AI panel is for plain-language
+        # explanation only, not a second score or a competing decision.
+        self._ai_summary.setText(
+            "AI-generated explanation • Advisory only • Verify original records"
         )
-        score_text = ""
-        if self._last:
-            score_text = f"Model screening score: {self._last[1].score:.1%}"
-        if checks:
-            self._ai_summary.setText(
-                f"{checks} practical checks to review  •  {score_text}"
-            )
-        else:
-            self._ai_summary.setText(score_text or "AI review guidance")
-        # QTextEdit renders Markdown headings, emphasis and numbered lists.
         self._ai_output.setMarkdown(brief)
         self._ai_button.setEnabled(True)
-        self._ai_button.setText("Regenerate AI investigation brief")
+        self._ai_button.setText("Regenerate AI explanation")
 
     def _ai_failed(self, message: str):
         self._ai_output.setPlainText(
