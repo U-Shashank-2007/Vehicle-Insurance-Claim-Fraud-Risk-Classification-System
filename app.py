@@ -19,7 +19,7 @@ from PySide6.QtCore import (
     QThread, QVariantAnimation, Signal,
 )
 from PySide6.QtGui import (
-    QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap,
+    QBrush, QColor, QFont, QIcon, QLinearGradient, QPainter, QPainterPath, QPalette, QPen, QPixmap,
     QPolygonF, QRegularExpressionValidator,
 )
 from PySide6.QtWidgets import (
@@ -573,7 +573,7 @@ class Gauge(QWidget):
         pen = QPen()
         pen.setWidth(16)
         pen.setCapStyle(Qt.RoundCap)
-        pen.setBrush(progress)
+        pen.setBrush(QBrush(progress))
         p.setPen(pen)
         p.drawArc(rect, 225 * 16, int(-270 * 16 * min(max(self._value, 0), 1)))
 
