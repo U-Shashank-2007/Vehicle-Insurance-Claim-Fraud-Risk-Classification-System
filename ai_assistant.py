@@ -3,7 +3,7 @@ Optional LLM explanation layer for ClaimGuard.
 
 The trained Random Forest remains the sole source of the numeric score and
 priority. This module sends a minimized, identifier-free claim summary to the
-configured OpenAI-compatible chat-completions endpoint and returns advisory
+configured OpenAI Responses API endpoint and returns advisory
 review guidance. It never changes a prediction or decides claim outcomes.
 """
 from __future__ import annotations
@@ -16,8 +16,8 @@ from urllib.request import Request, urlopen
 
 from model_service import Assessment, _pretty
 
-DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions"
-DEFAULT_MODEL = "gpt-4o-mini"
+DEFAULT_ENDPOINT = "https://api.openai.com/v1/responses"
+DEFAULT_MODEL = "gpt-5.6-luna"
 SENSITIVE_KEYS = {
     "customer_id", "policy_number", "claim_number", "name", "first_name",
     "last_name", "email", "phone", "address", "ssn", "date_of_birth",
@@ -51,7 +51,7 @@ def generate_investigation_brief(
 
     Environment:
       OPENAI_API_KEY (required)
-      OPENAI_BASE_URL (optional, OpenAI-compatible endpoint base)
+      OPENAI_BASE_URL (optional, API base URL)
       OPENAI_MODEL (optional)
     """
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
@@ -60,49 +60,42 @@ def generate_investigation_brief(
             "AI assistant is not configured. Set OPENAI_API_KEY in your environment."
         )
 
-    base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_ENDPOINT).strip().rstrip("/")
-    if base_url.endswith("/v1"):
-        endpoint = base_url + "/chat/completions"
-    elif base_url.endswith("/chat/completions"):
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/")
+    if base_url.endswith("/responses"):
         endpoint = base_url
+    elif base_url.endswith("/v1"):
+        endpoint = base_url + "/responses"
     else:
-        endpoint = base_url + "/v1/chat/completions"
+        endpoint = base_url + "/v1/responses"
 
     model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    instructions = (
+        "You are ClaimGuard's investigation-support assistant. "
+        "The numerical model score is authoritative and must not be altered. "
+        "A score is not a calibrated probability or proof of fraud. "
+        "Never accuse a claimant. Do not infer intent, protected traits, or "
+        "facts absent from the input. Provide a short structured brief with: "
+        "(1) what the model result means, (2) up to four neutral records or "
+        "inconsistencies an investigator could verify, and (3) a human-review "
+        "note. Separate observed input values from hypotheses. If no specific "
+        "concern is supported, say so. Do not recommend automatic rejection "
+        "or denial."
+    )
+    user_input = json.dumps(
+        {
+            "model_risk_score_percent": round(assessment.score * 100, 1),
+            "model_priority": assessment.title,
+            "flagged_for_human_review": assessment.flagged,
+            "claim_features": _safe_claim(values),
+        },
+        ensure_ascii=False,
+        default=str,
+    )
     payload = {
         "model": model,
-        "temperature": 0.2,
-        "messages": [
-            {
-                "role": "system",
-                "content": (
-                    "You are ClaimGuard's investigation-support assistant. "
-                    "The numerical model score is authoritative and must not be "
-                    "altered. A score is not a calibrated probability or proof "
-                    "of fraud. Never accuse a claimant. Do not infer intent, "
-                    "protected traits, or facts absent from the input. Provide "
-                    "a short structured brief with: (1) what the model result "
-                    "means, (2) up to four neutral records or inconsistencies "
-                    "an investigator could verify, and (3) a human-review note. "
-                    "Separate observed input values from hypotheses. If no "
-                    "specific concern is supported, say so. Do not recommend "
-                    "automatic rejection or denial."
-                ),
-            },
-            {
-                "role": "user",
-                "content": json.dumps(
-                    {
-                        "model_risk_score_percent": round(assessment.score * 100, 1),
-                        "model_priority": assessment.title,
-                        "flagged_for_human_review": assessment.flagged,
-                        "claim_features": _safe_claim(values),
-                    },
-                    ensure_ascii=False,
-                    default=str,
-                ),
-            },
-        ],
+        "instructions": instructions,
+        "input": user_input,
+        "max_output_tokens": 700,
     }
     request = Request(
         endpoint,
@@ -124,10 +117,17 @@ def generate_investigation_brief(
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise RuntimeError("AI provider returned an invalid response.") from exc
 
-    try:
-        text = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise RuntimeError("AI provider response did not contain an answer.") from exc
-    if not isinstance(text, str) or not text.strip():
-        raise RuntimeError("AI provider returned an empty explanation.")
+    # Responses API returns output message items; collect their text parts.
+    text_parts = []
+    for item in data.get("output", []):
+        if not isinstance(item, dict) or item.get("type") != "message":
+            continue
+        for part in item.get("content", []):
+            if isinstance(part, dict) and part.get("type") == "output_text":
+                value = part.get("text")
+                if isinstance(value, str) and value.strip():
+                    text_parts.append(value.strip())
+    text = "\\n".join(text_parts)
+    if not text.strip():
+        raise RuntimeError("AI provider response did not contain an answer.")
     return text.strip()
