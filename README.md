@@ -34,8 +34,8 @@
 
 - **Overview:** headline model quality, most influential factors, recent assessments
 - **Assess a claim:** five-step form with a risk gauge and plain-language priority
-- **AI investigation assistant:** optional API-generated investigation brief with neutral verification steps; does not modify the ML prediction
-- **Batch upload:** drag in a CSV, get claims ranked by risk, download the results
+- **AI investigation assistant:** optional API-generated investigation brief with neutral verification steps; does not modify the ML prediction; first-use data-sharing notice and additional minimization of financial and location fields
+- **Batch upload:** drag in a CSV, search and filter claims, sort columns, get claims ranked by risk, download the results
 - **Performance:** live classification report, confusion matrix and key factors
 - Light and dark themes, switchable from the top bar
 
