@@ -22,6 +22,9 @@ SENSITIVE_KEYS = {
     "last_name", "email", "phone", "address", "ssn", "date_of_birth",
     # Avoid exporting demographic/protected attributes to the LLM provider.
     "age", "gender", "marital_status", "education_level", "occupation",
+    # Financial and granular location fields are not needed for a plain-language
+    # verification brief and are excluded as an additional data-minimization step.
+    "annual_income", "credit_score", "incident_location", "payment_method",
 }
 
 
