@@ -355,7 +355,7 @@ class Badge(QWidget):
         p.drawRoundedRect(self.rect(), self.width() * 0.32, self.width() * 0.32)
         p.setBrush(c)
         r = self.width() * 0.16
-        p.drawEllipse(self.rect().center() + QPointF(0.5, 0.5), r, r)
+        p.drawEllipse(QPointF(self.rect().center()), r, r)
 
 
 class Stat(Surface):
