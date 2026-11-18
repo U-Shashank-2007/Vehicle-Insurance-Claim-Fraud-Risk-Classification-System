@@ -3,7 +3,7 @@ ClaimGuard - desktop application (PySide6).
 
 Pure presentation layer. All model interaction goes through ModelService.
 
-Run:  python claimguard_app.py
+Run:  python app.py
 """
 
 from __future__ import annotations
