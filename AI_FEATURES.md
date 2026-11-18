@@ -28,8 +28,9 @@ Optional provider configuration:
 $env:OPENAI_BASE_URL="https://api.openai.com/v1"
 ```
 
-For another OpenAI-compatible service, set `OPENAI_BASE_URL` to its API base
-and `OPENAI_MODEL` to a model supported by that provider. Never put a real
+For another provider, use an endpoint that implements the OpenAI Responses API
+request and response format, then set `OPENAI_BASE_URL` to its API base and
+`OPENAI_MODEL` to a model supported by that provider. Never put a real
 API key in source code, screenshots, Git history, or a committed `.env` file.
 
 ## Added capabilities
