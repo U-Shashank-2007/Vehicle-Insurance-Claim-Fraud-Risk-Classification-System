@@ -4,7 +4,7 @@ and responsible-use guidance.
 Quick start (PowerShell):
 ```powershell
 $env:OPENAI_API_KEY="your-real-api-key"
-python claimguard_app.py
+python app.py
 ```
 
 The AI investigation brief is optional. Without an API key or during a provider
