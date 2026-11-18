@@ -1,0 +1,131 @@
+"""
+Optional LLM explanation layer for ClaimGuard.
+
+The trained Random Forest remains the sole source of the numeric score and
+priority. This module sends a minimized, identifier-free claim summary to the
+configured OpenAI-compatible chat-completions endpoint and returns advisory
+review guidance. It never changes a prediction or decides claim outcomes.
+"""
+from __future__ import annotations
+
+import json
+import os
+from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+from model_service import Assessment, _pretty
+
+DEFAULT_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+DEFAULT_MODEL = "gpt-4o-mini"
+SENSITIVE_KEYS = {
+    "customer_id", "policy_number", "claim_number", "name", "first_name",
+    "last_name", "email", "phone", "address", "ssn", "date_of_birth",
+}
+
+
+def _safe_claim(values: dict[str, Any]) -> dict[str, Any]:
+    """Keep only scalar model features; exclude common direct identifiers."""
+    result = {}
+    for key, value in values.items():
+        if key.lower() in SENSITIVE_KEYS or any(
+            token in key.lower() for token in ("email", "phone", "address", "name")
+        ):
+            continue
+        if value is None or isinstance(value, (str, int, float, bool)):
+            result[_pretty(key)] = value
+    return result
+
+
+class AIConfigurationError(RuntimeError):
+    pass
+
+
+def generate_investigation_brief(
+    values: dict[str, Any], assessment: Assessment, timeout: int = 25
+) -> str:
+    """
+    Generate a concise, non-determinative investigator brief.
+
+    Environment:
+      OPENAI_API_KEY (required)
+      OPENAI_BASE_URL (optional, OpenAI-compatible endpoint base)
+      OPENAI_MODEL (optional)
+    """
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise AIConfigurationError(
+            "AI assistant is not configured. Set OPENAI_API_KEY in your environment."
+        )
+
+    base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_ENDPOINT).strip().rstrip("/")
+    if base_url.endswith("/v1"):
+        endpoint = base_url + "/chat/completions"
+    elif base_url.endswith("/chat/completions"):
+        endpoint = base_url
+    else:
+        endpoint = base_url + "/v1/chat/completions"
+
+    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+    payload = {
+        "model": model,
+        "temperature": 0.2,
+        "messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are ClaimGuard's investigation-support assistant. "
+                    "The numerical model score is authoritative and must not be "
+                    "altered. A score is not a calibrated probability or proof "
+                    "of fraud. Never accuse a claimant. Do not infer intent, "
+                    "protected traits, or facts absent from the input. Provide "
+                    "a short structured brief with: (1) what the model result "
+                    "means, (2) up to four neutral records or inconsistencies "
+                    "an investigator could verify, and (3) a human-review note. "
+                    "Separate observed input values from hypotheses. If no "
+                    "specific concern is supported, say so. Do not recommend "
+                    "automatic rejection or denial."
+                ),
+            },
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {
+                        "model_risk_score_percent": round(assessment.score * 100, 1),
+                        "model_priority": assessment.title,
+                        "flagged_for_human_review": assessment.flagged,
+                        "claim_features": _safe_claim(values),
+                    },
+                    ensure_ascii=False,
+                    default=str,
+                ),
+            },
+        ],
+    }
+    request = Request(
+        endpoint,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        detail = exc.read(500).decode("utf-8", errors="replace")
+        raise RuntimeError(f"AI provider returned HTTP {exc.code}: {detail}") from exc
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError(f"AI provider could not be reached: {exc}") from exc
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise RuntimeError("AI provider returned an invalid response.") from exc
+
+    try:
+        text = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError("AI provider response did not contain an answer.") from exc
+    if not isinstance(text, str) or not text.strip():
+        raise RuntimeError("AI provider returned an empty explanation.")
+    return text.strip()
