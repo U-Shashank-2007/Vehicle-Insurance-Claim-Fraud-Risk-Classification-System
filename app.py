@@ -1125,7 +1125,7 @@ class NewClaimPage(QWidget):
 
     def _ai_failed(self, message: str):
         self._ai_output.setPlainText(
-            "AI assistance is unavailable. Your original ML assessment is still valid.\\n\\n"
+            "AI assistance is unavailable. Your original ML assessment is still valid.\n\n"
             + message
         )
         self._ai_button.setEnabled(True)
