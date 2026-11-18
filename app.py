@@ -3,7 +3,7 @@ ClaimGuard - desktop application (PySide6).
 
 Pure presentation layer. All model interaction goes through ModelService.
 
-Run:  python claimguard_app.py
+Run:  python app.py
 """
 
 from __future__ import annotations
@@ -27,12 +27,13 @@ from PySide6.QtWidgets import (
     QDoubleSpinBox, QFileDialog, QFrame, QGraphicsDropShadowEffect, QLineEdit, QListView,
     QGridLayout, QHBoxLayout, QHeaderView, QInputDialog, QLabel, QMainWindow,
     QMessageBox, QPushButton, QScrollArea, QSizePolicy, QStackedWidget,
-    QTableView, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
+    QTableView, QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
 
 from model_service import (
     Assessment, ClassificationSummary, FieldSpec, ModelService, ServiceError,
 )
+from ai_assistant import generate_investigation_brief
 
 # ===========================================================================
 # Theme: orange / neon green / hot pink, in light and dark
@@ -891,6 +892,7 @@ class NewClaimPage(QWidget):
         self._inputs: dict[str, QWidget] = {}
         self._specs: dict[str, FieldSpec] = {}
         self._last: Optional[tuple[dict, Assessment]] = None
+        self._last_ai_brief = ""
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 24)
@@ -1052,7 +1054,21 @@ class NewClaimPage(QWidget):
         right.addWidget(self._r_msg)
         right.addWidget(label("This is a prompt for human review, not a finding of fraud.",
                               "muted", True))
-        right.addSpacing(16)
+        right.addSpacing(10)
+        self._ai_button = make_button("Generate AI investigation brief", "secondary")
+        self._ai_button.clicked.connect(self._generate_ai_brief)
+        right.addWidget(self._ai_button)
+        right.addWidget(label(
+            "Optional API-powered guidance. It does not change the model score or decision.",
+            "muted", True))
+        self._ai_output = QTextEdit()
+        self._ai_output.setReadOnly(True)
+        self._ai_output.setPlaceholderText(
+            "Your AI-generated investigation brief will appear here.")
+        self._ai_output.setMinimumHeight(150)
+        self._ai_output.setMaximumHeight(230)
+        right.addWidget(self._ai_output)
+        right.addSpacing(8)
         btns = QHBoxLayout()
         again = make_button("Assess another claim")
         again.clicked.connect(self.reset)
@@ -1085,7 +1101,38 @@ class NewClaimPage(QWidget):
         self._next.setText("Assess claim")
         self._stack.setCurrentIndex(1)
         self._gauge.show_score(result.score, tone)
+        self._ai_output.clear()
+        self._last_ai_brief = ""
+        self._ai_button.setEnabled(True)
+        self._ai_button.setText("Generate AI investigation brief")
         LOG.add(result.score, result.level, result.title)
+
+    def _generate_ai_brief(self):
+        if not self._last:
+            return
+        values, assessment = self._last
+        self._ai_button.setEnabled(False)
+        self._ai_button.setText("Generating brief...")
+        self._ai_output.setPlainText(
+            "Contacting the configured AI provider. The ML score remains unchanged.")
+        self._worker = Worker(generate_investigation_brief, values, assessment)
+        self._worker.done.connect(self._show_ai_brief)
+        self._worker.failed.connect(self._ai_failed)
+        self._worker.start()
+
+    def _show_ai_brief(self, brief: str):
+        self._last_ai_brief = brief
+        self._ai_output.setPlainText(brief)
+        self._ai_button.setEnabled(True)
+        self._ai_button.setText("Regenerate AI investigation brief")
+
+    def _ai_failed(self, message: str):
+        self._ai_output.setPlainText(
+            "AI assistance is unavailable. Your original ML assessment is still valid.\n\n"
+            + message
+        )
+        self._ai_button.setEnabled(True)
+        self._ai_button.setText("Retry AI investigation brief")
 
     def _save(self):
         if not self._last:
@@ -1093,7 +1140,9 @@ class NewClaimPage(QWidget):
         path, _ = QFileDialog.getSaveFileName(
             self, "Save result", "claim_assessment.csv", "CSV files (*.csv)")
         if path:
-            self._service.export_frame(*self._last).to_csv(path, index=False)
+            export = self._service.export_frame(*self._last)
+            export["AI investigation brief"] = self._last_ai_brief
+            export.to_csv(path, index=False)
 
 
 class DropZone(QFrame):
