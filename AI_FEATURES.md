@@ -19,7 +19,7 @@ The integration uses an OpenAI Responses API.
 PowerShell (current terminal):
 ```powershell
 $env:OPENAI_API_KEY="your-real-api-key"
-$env:OPENAI_MODEL="gpt-5.6-luna"
+$env:OPENAI_MODEL="gpt-6-luna"
 python app.py
 ```
 
