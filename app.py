@@ -41,19 +41,19 @@ from ai_assistant import generate_investigation_brief
 # ===========================================================================
 PALETTES = {
     "light": dict(
-        bg="#F7F9FC", sidebar="#FFFFFF", surface="#FFFFFF", surface2="#F2F5F9",
-        border="#E4E9F0", border2="#CBD5E1", text="#172033", muted="#667085",
-        track="#E8EDF4",
+        bg="#F3F6FB", sidebar="#FFFFFF", surface="#FFFFFF", surface2="#F8FAFD",
+        border="#E5EAF2", border2="#C9D3E1", text="#17243A", muted="#68778D",
+        track="#E9EEF5",
         orange="#F97316", orange_hover="#EA580C", orange_text="#C2410C",
         on_orange="#FFFFFF",
-        green="#16A36A", green_text="#087443",
+        green="#159B68", green_text="#087443",
         pink="#E54875", pink_text="#BE345D",
         tint=0.12,
     ),
     "dark": dict(
-        bg="#101828", sidebar="#172235", surface="#1D2A3D", surface2="#243349",
-        border="#34445B", border2="#465A73", text="#F8FAFC", muted="#B0BDCE",
-        track="#34445B",
+        bg="#0D1728", sidebar="#121F33", surface="#19283D", surface2="#21334B",
+        border="#30435C", border2="#49617D", text="#F7FAFF", muted="#B2C1D4",
+        track="#30435C",
         orange="#FB923C", orange_hover="#FDBA74", orange_text="#FDBA74",
         on_orange="#271306",
         green="#34D399", green_text="#6EE7B7",
@@ -129,8 +129,16 @@ QLabel#cardHeading { font-size: 15px; font-weight: 650; }
 QLabel#statValue { font-size: 28px; font-weight: 700; }
 QLabel#tileValue { font-size: 26px; font-weight: 700; }
 
-QFrame#card { background: $surface; border: 1px solid $border; border-radius: 18px; }
-QFrame#dropzone { background: transparent; border: 1.5px dashed $border2; border-radius: 18px; }
+QFrame#card {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 $surface, stop:1 $surface2);
+    border: 1px solid $border; border-radius: 20px;
+}
+QFrame#dropzone {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 $surface, stop:1 $surface2);
+    border: 2px dashed $border2; border-radius: 20px;
+}
 QFrame#dropzone[hover="true"] { border-color: $orange; background: $orange_tint; }
 QFrame#tile { border-radius: 14px; border: none; }
 QFrame#tile[tone="green"] { background: $green_tint; }
@@ -155,24 +163,38 @@ QPushButton {
     border-radius: 10px; padding: 8px 16px;
 }
 QPushButton#primary {
-    background: $orange; color: $on_orange; border: none; border-radius: 12px;
-    padding: 11px 22px; font-weight: 700;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 $orange_hover, stop:0.12 $orange, stop:1 $orange_text);
+    color: $on_orange; border: 1px solid $orange; border-bottom: 3px solid $orange_text;
+    border-radius: 12px; padding: 11px 22px; font-weight: 700;
 }
-QPushButton#primary:hover { background: $orange_hover; }
-QPushButton#primary:disabled { background: $surface2; color: $muted; }
+QPushButton#primary:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 $orange, stop:1 $orange_hover);
+}
+QPushButton#primary:pressed { border-bottom-width: 1px; padding-top: 13px; }
+QPushButton#primary:disabled { background: $surface2; color: $muted; border: 1px solid $border; }
 QPushButton#secondary {
-    background: $surface; color: $text; border: 1px solid $border2;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 $surface, stop:1 $surface2);
+    color: $text; border: 1px solid $border2; border-bottom: 2px solid $border2;
     border-radius: 12px; padding: 11px 20px; font-weight: 600;
 }
-QPushButton#secondary:hover { background: $surface2; }
+QPushButton#secondary:hover { background: $surface2; border-color: $orange; }
+QPushButton#secondary:pressed { border-bottom-width: 1px; padding-top: 12px; }
 QPushButton#secondary:disabled { color: $muted; border-color: $border; }
 
-QLineEdit, QComboBox {
-    background: $surface2; color: $text; border: 1.5px solid transparent;
-    border-radius: 10px; padding: 9px 12px; min-height: 22px;
+QLineEdit, QComboBox, QDoubleSpinBox, QSpinBox {
+    background: $surface2; color: $text; border: 1.5px solid $border;
+    border-radius: 11px; padding: 10px 12px; min-height: 24px;
     selection-background-color: $orange; selection-color: $on_orange;
 }
-QLineEdit:focus, QComboBox:focus { border: 1.5px solid $orange; }
+QLineEdit:hover, QComboBox:hover, QDoubleSpinBox:hover, QSpinBox:hover {
+    border-color: $border2;
+}
+QLineEdit:focus, QComboBox:focus, QDoubleSpinBox:focus, QSpinBox:focus {
+    background: $surface; border: 1.5px solid $orange;
+}
 QComboBox::drop-down { border: none; width: 30px; }
 QComboBox QAbstractItemView {
     background: $surface; border: 1px solid $border; padding: 4px;
@@ -181,6 +203,11 @@ QComboBox QAbstractItemView {
 }
 QComboBox QAbstractItemView::item { min-height: 30px; padding-left: 8px; border-radius: 6px; }
 
+QTextEdit {
+    background: $surface; color: $text; border: 1px solid $border;
+    border-radius: 12px; padding: 12px; selection-background-color: $orange;
+}
+QTextEdit:focus { border: 1.5px solid $orange; }
 QTableView, QTableWidget {
     background: $surface; alternate-background-color: $surface2;
     border: 1px solid $border; border-radius: 10px;
@@ -335,11 +362,13 @@ class Surface(QFrame):
         self._sync()
 
     def _sync(self):
-        if self._shadow and THEME.name == "light":
+        # Layered soft shadow gives cards a restrained raised / glass-panel feel
+        # without relying on heavy 3D rendering or reducing readability.
+        if self._shadow:
             fx = QGraphicsDropShadowEffect(self)
-            fx.setBlurRadius(28)
-            fx.setOffset(0, 4)
-            fx.setColor(QColor(60, 40, 20, 26))
+            fx.setBlurRadius(30 if THEME.name == "light" else 22)
+            fx.setOffset(0, 7 if THEME.name == "light" else 4)
+            fx.setColor(QColor(32, 48, 72, 22 if THEME.name == "light" else 48))
             self.setGraphicsEffect(fx)
         else:
             self.setGraphicsEffect(None)
@@ -1708,8 +1737,8 @@ class MainWindow(QMainWindow):
     def __init__(self, service: ModelService):
         super().__init__()
         self.setWindowTitle("ClaimGuard")
-        self.resize(1320, 840)
-        self.setMinimumSize(980, 640)
+        self.resize(1440, 900)
+        self.setMinimumSize(960, 640)
 
         root = QWidget()
         root.setObjectName("root")
@@ -1722,9 +1751,9 @@ class MainWindow(QMainWindow):
         side = QWidget()
         side.setObjectName("sidebar")
         side.setAttribute(Qt.WA_StyledBackground, True)
-        side.setFixedWidth(224)
+        side.setFixedWidth(244)
         sl = QVBoxLayout(side)
-        sl.setContentsMargins(18, 26, 18, 22)
+        sl.setContentsMargins(20, 28, 20, 24)
         sl.setSpacing(4)
 
         brand = QHBoxLayout()
@@ -1759,14 +1788,15 @@ class MainWindow(QMainWindow):
         # ---- content ----
         content = QWidget()
         cl = QVBoxLayout(content)
-        cl.setContentsMargins(30, 24, 24, 0)
-        cl.setSpacing(22)
+        cl.setContentsMargins(34, 28, 30, 0)
+        cl.setSpacing(24)
 
         top = QHBoxLayout()
         titles = QVBoxLayout()
         titles.setSpacing(2)
         self._title = label("", "pageTitle")
         self._subtitle = label("", "muted")
+        self._subtitle.setMinimumHeight(20)
         titles.addWidget(self._title)
         titles.addWidget(self._subtitle)
         top.addLayout(titles, 1)
