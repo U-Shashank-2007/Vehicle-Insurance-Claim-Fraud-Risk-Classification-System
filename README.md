@@ -13,6 +13,7 @@
 - [Results](#results)
 - [Installation](#installation)
 - [Running the application](#running-the-application)
+- [AI investigation assistant](#ai-investigation-assistant)
 - [Reproducing the experiment](#reproducing-the-experiment)
 - [Limitations and responsible use](#limitations-and-responsible-use)
 
@@ -33,6 +34,7 @@
 
 - **Overview:** headline model quality, most influential factors, recent assessments
 - **Assess a claim:** five-step form with a risk gauge and plain-language priority
+- **AI investigation assistant:** optional API-generated investigation brief with neutral verification steps; does not modify the ML prediction
 - **Batch upload:** drag in a CSV, get claims ranked by risk, download the results
 - **Performance:** live classification report, confusion matrix and key factors
 - Light and dark themes, switchable from the top bar
@@ -217,8 +219,30 @@ Data/Raw/insurance_claim_fraud_dataset.csv
 Start from the project root:
 
 ```powershell
+# Optional AI feature (PowerShell)
+$env:OPENAI_API_KEY="your-real-api-key"
+$env:OPENAI_MODEL="gpt-4o-mini"
+
 python claimguard_app.py
 ```
+
+### AI investigation assistant
+
+After a single-claim assessment, select **Generate AI investigation brief**.
+The configured API returns a plain-language explanation and neutral record
+checks for a human investigator. The AI brief can also be included in the
+saved assessment CSV.
+
+Configure `OPENAI_API_KEY` as an environment variable before starting the
+application. Optional settings are `OPENAI_BASE_URL` (default:
+`https://api.openai.com/v1`) and `OPENAI_MODEL` (default:
+`gpt-4o-mini`). The integration supports OpenAI-compatible Chat Completions
+endpoints. It uses the Python standard library; no extra package is required.
+
+See [AI_FEATURES.md](AI_FEATURES.md) for provider configuration, privacy
+minimisation, failure handling and responsible-use details. The AI feature is
+optional: without a key or during an API outage, the Random Forest assessment
+continues to work normally.
 
 ### Required artifacts
 
