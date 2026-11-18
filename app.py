@@ -1059,8 +1059,11 @@ class NewClaimPage(QWidget):
         self._ai_button.clicked.connect(self._generate_ai_brief)
         right.addWidget(self._ai_button)
         right.addWidget(label(
-            "Optional API-powered guidance. It does not change the model score or decision.",
+            "AI support explains what to verify. The Random Forest keeps control of the score.",
             "muted", True))
+        self._ai_summary = label(
+            "Your AI review checklist will appear here after generation.", "muted", True)
+        right.addWidget(self._ai_summary)
         self._ai_output = QTextEdit()
         self._ai_output.setReadOnly(True)
         self._ai_output.setPlaceholderText(
@@ -1122,8 +1125,23 @@ class NewClaimPage(QWidget):
 
     def _show_ai_brief(self, brief: str):
         self._last_ai_brief = brief
-        # Render the assistant's Markdown as formatted rich text instead of
-        # showing raw markers such as ###, **bold**, and numbered-list syntax.
+        # Count the numbered verification items for a compact visual summary.
+        checks = sum(
+            1 for line in brief.splitlines()
+            if line.strip()[:1].isdigit()
+            and len(line.strip()) > 1
+            and line.strip()[1] in ".)"
+        )
+        score_text = ""
+        if self._last:
+            score_text = f"Model screening score: {self._last[1].score:.1%}"
+        if checks:
+            self._ai_summary.setText(
+                f"{checks} practical checks to review  •  {score_text}"
+            )
+        else:
+            self._ai_summary.setText(score_text or "AI review guidance")
+        # QTextEdit renders Markdown headings, emphasis and numbered lists.
         self._ai_output.setMarkdown(brief)
         self._ai_button.setEnabled(True)
         self._ai_button.setText("Regenerate AI investigation brief")
