@@ -298,6 +298,32 @@ class SessionLog(QObject):
 
 LOG = SessionLog()
 
+# AI explanations use a configured third-party API. Ask once per app session
+# before any claim features are sent outside the local application.
+_AI_DATA_NOTICE_ACCEPTED = False
+
+
+def confirm_ai_data_sharing(parent: QWidget) -> bool:
+    global _AI_DATA_NOTICE_ACCEPTED
+    if _AI_DATA_NOTICE_ACCEPTED:
+        return True
+    answer = QMessageBox.question(
+        parent,
+        "Before using AI assistance",
+        "AI explanations send a minimized set of claim details and the model "
+        "screening result to the API provider configured for this application. "
+        "Common identifiers and demographic fields are excluded, but combinations "
+        "of claim details may still be identifying.\n\n"
+        "Continue only with synthetic, de-identified, or appropriately approved "
+        "claim data. The AI explanation is advisory and does not make claim decisions.",
+        QMessageBox.Yes | QMessageBox.No,
+        QMessageBox.No,
+    )
+    if answer != QMessageBox.Yes:
+        return False
+    _AI_DATA_NOTICE_ACCEPTED = True
+    return True
+
 
 # ===========================================================================
 # Helpers
@@ -1225,6 +1251,8 @@ class NewClaimPage(QWidget):
     def _generate_ai_brief(self):
         if not self._last:
             return
+        if not confirm_ai_data_sharing(self):
+            return
         values, assessment = self._last
         self._ai_button.setEnabled(False)
         self._ai_button.setText("Generating brief...")
@@ -1587,6 +1615,8 @@ class BatchPage(QWidget):
 
     def _explain_selected_claim(self):
         if self._results is None:
+            return
+        if not confirm_ai_data_sharing(self):
             return
         selected = self._table.selectionModel().selectedRows()
         if not selected:
