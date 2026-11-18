@@ -14,12 +14,12 @@ a recommendation to reject a claim.
 
 ## Configure the API
 
-The integration uses an OpenAI-compatible Chat Completions API.
+The integration uses an OpenAI Responses API.
 
 PowerShell (current terminal):
 ```powershell
 $env:OPENAI_API_KEY="your-real-api-key"
-$env:OPENAI_MODEL="gpt-4o-mini"
+$env:OPENAI_MODEL="gpt-5.6-luna"
 python app.py
 ```
 
@@ -38,7 +38,7 @@ API key in source code, screenshots, Git history, or a committed `.env` file.
 - Neutral verification suggestions rather than fraud accusations.
 - Identifier minimization before sending model features to the provider.
 - API timeout/error handling; the original ML assessment remains available.
-- Configurable OpenAI-compatible endpoint and model.
+- Configurable Responses API-compatible endpoint and model.
 - Explicit separation between predictive score and generated explanation.
 
 ## Privacy and responsible use
