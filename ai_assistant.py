@@ -21,6 +21,8 @@ DEFAULT_MODEL = "gpt-4o-mini"
 SENSITIVE_KEYS = {
     "customer_id", "policy_number", "claim_number", "name", "first_name",
     "last_name", "email", "phone", "address", "ssn", "date_of_birth",
+    # Avoid exporting demographic/protected attributes to the LLM provider.
+    "age", "gender", "marital_status", "education_level", "occupation",
 }
 
 
