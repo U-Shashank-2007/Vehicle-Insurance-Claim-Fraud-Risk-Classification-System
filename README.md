@@ -71,12 +71,15 @@ CA-1/
 │   ├── model.py
 │   └── train.py
 ├── app.py                # desktop interface (presentation only)
-├── model_service.py       # model access layer used by the interface
+├── model_service.py      # ML model access and scoring
+├── ai_assistant.py       # optional API-powered investigation brief
 ├── requirements.txt
-└── README.md
+├── README.md
+└── AI_FEATURES.md
 ```
 
-`claimguard_app.py` and `model_service.py` must sit in the project root, because `model_service.py` resolves artifact paths relative to its own location.
+`app.py`, `model_service.py` and `ai_assistant.py` must sit in the project
+root. The model service resolves model artifacts relative to its own location.
 
 Generated data, model and report files are excluded from version control by `.gitignore`. A fresh clone will not run the application until these artifacts have been generated or supplied (see [Required artifacts](#required-artifacts)).
 
